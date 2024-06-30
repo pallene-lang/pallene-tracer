@@ -83,6 +83,10 @@ typedef struct pt_cont {
 
 /* ---------------- DECLARATIONS ---------------- */
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
 void pallene_tracer_frameenter(lua_State *L, pt_cont_t *cont, pt_frame_t *restrict frame);
 
@@ -112,6 +116,10 @@ pt_cont_t *pallene_tracer_init(lua_State *L);
 
 /* When Pallene call-stack is overflowed. */
 l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 /* ---------------- DECLARATIONS END ---------------- */
 
