@@ -1,6 +1,6 @@
 /* 
  * Copyright (c) 2024, The Pallene Developers
- * Pallene is licensed under the BSD-3-Clause license.
+ * Pallene Tracer is licensed under the BSD-3-Clause license.
  * Please refer to the LICENSE and AUTHORS files for details
  * SPDX-License-Identifier: BSD-3-Clause 
  */
@@ -20,6 +20,8 @@
 
 #if defined(__GNUC__) || defined(__clang__) 
 #define PALLENE_TRACER_UNREACHABLE    __builtin_unreachable()
+#elif defined(_MSC_VER) // MSVC
+#define PALLENE_TRACER_UNREACHABLE    __assume(false)
 #endif
 
 /* Pallene stack reference entry for the registry. */
@@ -31,9 +33,10 @@
 #define PALLENE_TRACER_FINALIZER_ENTRY  "__PALLENE_TRACER_FINALIZER"
 
 /* The size of the Pallene call-stack. */
+/* DO NOT CHANGE EVEN BY MISTAKE. */
 #define PALLENE_TRACER_MAX_CALLSTACK           2000000
 
-/* Traceback elipsis top threshold. How many frames should we print
+/* Traceback ellipsis top threshold. How many frames should we print
    first to trigger ellipsis? */
 #define PALLENE_TRACEBACK_TOP_THRESHOLD      10
 /* This should always be 2 fewer than top threshold, for symmetry.
@@ -207,7 +210,7 @@ static int _countlevels (lua_State *L) {
 
     /* Do a binary search */
     while (li < le) {
-        int m = (li + le)/2;
+        int m = (li + le) / 2;
 
         if (lua_getstack(L, m, &ar)) li = m + 1;
         else le = m;
