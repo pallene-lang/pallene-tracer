@@ -20,13 +20,27 @@ it("Dispatch", function()
     assert_example("dispatch", [[
 Runtime error: examples/dispatch/main.lua:10: Error from an untracked C function, which has no trace in Lua callstack!
 Stack traceback:
-    examples/dispatch/module.c:51: in function 'some_untracked_c_function'
-    examples/dispatch/module.c:94: in function 'module_fn_2'
+    examples/dispatch/module.c:49: in function 'some_untracked_c_function'
+    examples/dispatch/module.c:92: in function 'module_fn_2'
     examples/dispatch/main.lua:10: in function 'lua_callee_1'
-    examples/dispatch/module.c:64: in function 'module_fn_1'
+    examples/dispatch/module.c:62: in function 'module_fn_1'
     examples/dispatch/main.lua:15: in function 'wrapper'
     C: in function 'xpcall'
     examples/dispatch/main.lua:19: in <main>
+    C: in function '<?>'
+]])
+end)
+
+it("Singular", function()
+    assert_example("singular", [[
+Runtime error: examples/singular/main.lua:10: Lifes !good
+Stack traceback:
+    examples/singular/module.c:52: in function 'lifes_good_fn'
+    examples/singular/module.c:62: in function 'singular_fn_1'
+    examples/singular/main.lua:10: in function 'some_lua_fn'
+    examples/singular/main.lua:15: in function 'wrapper'
+    C: in function 'xpcall'
+    examples/singular/main.lua:19: in <main>
     C: in function '<?>'
 ]])
 end)

@@ -11,9 +11,9 @@
 
 /* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
 #define PREPARE_FINALIZER()                             \
+    int _base = lua_gettop(L);                          \
     lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1);                                 \
-    int _base = lua_gettop(L);
+    lua_toclose(L, -1); /* The finalizer fn will run whenever out of scope. */
 #define MODULE_LUA_FRAMEENTER(sig)                      \
     pt_cont_t *cont = (pt_cont_t *)                     \
         lua_touserdata(L, lua_upvalueindex(1));         \
@@ -23,10 +23,8 @@
     };                                                  \
     pallene_tracer_frameenter(L, cont, &_frame);        \
     PREPARE_FINALIZER()
-
 #define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base);                               \
-    lua_pop(L, 1) /* Pop the finalizer object, triggering the finalizer. */
+    lua_settop(L, _base);
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 #define MODULE_C_FRAMEENTER()                           \
