@@ -3,10 +3,26 @@
 # Please refer to the LICENSE and AUTHORS files for details
 # SPDX-License-Identifier: BSD-3-Clause 
 
-LUA_INCDIR := /usr/local/include/
+CC := gcc
+INSTALL_DIR    := /usr/local
+INSTALL_INCDIR := $(INSTALL_DIR)/include
+INSTALL_LIBDIR := $(INSTALL_DIR)/lib
+
+.PHONY :
+.SILENT:
 
 install:
-	cp -f lib/ptracer.h $(LUA_INCDIR)
+	cp lib/ptracer.h $(INSTALL_INCDIR)
+	$(CC) -fPIC -O2 -shared src/ptracer.c -o libptracer.so
+	cp libptracer.so $(INSTALL_LIBDIR)
+	echo "Done."
 
-remove: 
-	rm -rf $(LUA_INCDIR)/ptracer.h
+uninstall: 
+	rm -rf $(INSTALL_INCDIR)/ptracer.h
+	rm -rf $(INSTALL_LIBDIR)/libptracer.so
+	echo "Done."
+
+clean: 
+	rm -rf ptinit/*.o
+	rm -rf examples/*/*.so
+	rm -rf *.so

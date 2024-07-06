@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# HOW TO USE: This is a wrapper around busted. The command-line arguments are the same.
+#
+# EXAMPLES:
+#   ./run-tests
+#   ./run-tests -k
+#   ./run-tests spec/examples_spec.lua
+
+echo "--- Test Suite ---"
+
+# We encourage using -no-keep-going by default. Sometimes the test suite is failing because of
+# something silly such as forgetting to run make and in those cases there is a desire to interrupt
+# the test suite with Ctrl-C. With --keep-going (the default busted behavior) you need to press
+# Ctrl-C multiple times and one of those Ctrl-C's will likely kill the busted process itself,
+# meaning that the "teardown" routines are not run. On the other hand, with --no-keep-going we only
+# need to press Ctrl-C once and busted usually gets to exit gracefully.
+FLAGS=(--verbose --no-keep-going)
+
+# To speed things up, we tell the C compiler to skip optimizations. (It's OK, the CI still uses -O2)
+# Also, add some compiler flags to verify standard compliance.
+export CFLAGS='-O0 -std=c99 -Wall -Werror -Wundef -Wpedantic -Wno-unused'
+
+if [ "$#" -eq 0 ]; then
+    if command -v parallel >/dev/null; then
+        parallel busted -o utfTerminal "${FLAGS[@]}" ::: spec/*_spec.lua
+    else
+        echo "GNU Parallel is not installed. Running the test suite in single threaded mode..."
+        busted "${FLAGS[@]}"
+    fi
+    # By default, also run the linter because the CI cares about that.
+    ./run-lint --quiet
+else
+    # If we are running tests for a single spec file, then we do not use GNU Parallel. This way the
+    # progress updates after each test, instead of all at once at end.
+    busted "${FLAGS[@]}" "$@"
+fi

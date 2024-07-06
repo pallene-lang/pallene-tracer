@@ -1,2 +1,3 @@
-ptinit/ptinit.o
-ptinit.so
+*.o
+*.a
+*.so
