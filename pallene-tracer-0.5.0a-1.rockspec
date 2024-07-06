@@ -7,10 +7,10 @@ source = {
 description = {
     summary = "Pallene Tracer for Traceback",
     detailed = [[
-        Universal traceback library for Lua C modules.
+        Universal traceback library for Lua C modules
     ]],
     homepage = "http://github.com/pallene-lang/pallene-tracer",
-    license = "BSD-3-Clause"
+    license = "MIT"
 }
 dependencies = {
     "lua >= 5.4"

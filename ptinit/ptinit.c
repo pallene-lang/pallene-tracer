@@ -1,8 +1,8 @@
 /* 
  * Copyright (c) 2024, The Pallene Developers
- * Pallene is licensed under the BSD-3-Clause license.
+ * Pallene is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: BSD-3-Clause 
+ * SPDX-License-Identifier: MIT 
  */
 
 #define PT_IMPLEMENTATION

@@ -1,7 +1,7 @@
 # Copyright (c) 2024, The Pallene Developers
-# Pallene Tracer is licensed under the BSD-3-Clause license.
+# Pallene Tracer is licensed under the MIT license.
 # Please refer to the LICENSE and AUTHORS files for details
-# SPDX-License-Identifier: BSD-3-Clause 
+# SPDX-License-Identifier: MIT 
 
 CC := gcc
 CURRENT_DIR := $(shell realpath --relative-to=$(shell pwd) $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))

@@ -1,8 +1,8 @@
 /* 
  * Copyright (c) 2024, The Pallene Developers
- * Pallene Tracer is licensed under the BSD-3-Clause license.
+ * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: BSD-3-Clause 
+ * SPDX-License-Identifier: MIT 
  */
 
 /* This source will be used to build the shared, dynamically 
