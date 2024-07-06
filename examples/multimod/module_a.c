@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-3-Clause 
  */
 
-/* Static use of the library would suffice. */
-#define PT_IMPLEMENTATION
+/* This time we would be doing dynamic linking. */
 #include <ptracer.h>
 
 /* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
@@ -42,22 +41,11 @@
 #define MODULE_C_FRAMEEXIT()                            \
     pallene_tracer_frameexit(cont)
 
-void some_untracked_c_function(lua_State *L, pt_cont_t *cont) {
-    MODULE_C_FRAMEENTER();
-
-    MODULE_SETLINE();
-    luaL_error(L, "Error from an untracked C function, which has no trace in Lua callstack!");
-
-    MODULE_C_FRAMEEXIT();
-}
-
-void module_fn_1(lua_State *L, pt_cont_t *cont) {
+void some_mod_fn(lua_State *L, pt_cont_t *cont) {
     MODULE_C_FRAMEENTER();
 
     // Other code...
 
-    /* Set line number to current active frame in the Pallene callstack and
-       call the function which is already in the Lua stack. */
     MODULE_SETLINE();
     lua_call(L, 0, 0);
 
@@ -66,48 +54,25 @@ void module_fn_1(lua_State *L, pt_cont_t *cont) {
     MODULE_C_FRAMEEXIT();
 }
 
-int module_fn_1_lua(lua_State *L) {
-    MODULE_LUA_FRAMEENTER(module_fn_1_lua);
+int some_mod_fn_lua(lua_State *L) {
+    MODULE_LUA_FRAMEENTER(some_mod_fn_lua);
 
-    /* Peep at the macro defintion for `_base`. */
-    if(luai_unlikely(_base < 1)) 
-        luaL_error(L, "Expected atleast 1 parameters");
+    /* Look at the macro definition. */
+    if(_base < 1) 
+        luaL_error(L, "Expected atleast 1 argument");
 
     lua_pushvalue(L, 1);
-    if(luai_unlikely(lua_isfunction(L, -1) == 0)) 
-        luaL_error(L, "Expected parameter 1 to be a function");
+    if(luai_unlikely(lua_isfunction(L, -1) == 0))
+        luaL_error(L, "Expected the first argument to be a function");
 
-    /* Now dispatch to an actual C function. */
-    module_fn_1(L, cont);
-
-    MODULE_LUA_FRAMEEXIT();
-    return 0;
-}
-
-void module_fn_2(lua_State *L, pt_cont_t *cont) {
-    MODULE_C_FRAMEENTER();
-
-    // Other code...
-
-    MODULE_SETLINE();
-    some_untracked_c_function(L, cont);
-
-    // Other code...
-
-    MODULE_C_FRAMEEXIT();
-}
-
-int module_fn_2_lua(lua_State *L) {
-    MODULE_LUA_FRAMEENTER(module_fn_2_lua);
-
-    /* Now dispatch to an actual C function. */
-    module_fn_2(L, cont);
+    /* Dispatch. */
+    some_mod_fn(L, cont);
 
     MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 
-int luaopen_examples_dispatch_module(lua_State *L) {
+int luaopen_examples_multimod_module_a(lua_State *L) {
     /* Our stack. */
     pt_cont_t *cont = pallene_tracer_init(L);
 
@@ -117,18 +82,13 @@ int luaopen_examples_dispatch_module(lua_State *L) {
     /* One very good way to integrate our stack userdatum and finalizer
       object is by using Lua upvalues. */
 
-    /* ---- module_fn_1 ---- */
+    /* ---- singular_fn_1 ---- */
     lua_pushlightuserdata(L, (void *) cont);
     /* `pallene_tracer_init` function pushes the frameexit finalizer to the stack. */
     lua_pushvalue(L, -3);
-    lua_pushcclosure(L, module_fn_1_lua, 2);
-    lua_setfield(L, -2, "module_fn_1");
-
-    /* ---- module_fn_2 ---- */
-    lua_pushlightuserdata(L, (void *) cont);
-    lua_pushvalue(L, -3);
-    lua_pushcclosure(L, module_fn_2_lua, 2);
-    lua_setfield(L, -2, "module_fn_2");
+    lua_pushcclosure(L, some_mod_fn_lua, 2);
+    lua_setfield(L, -2, "some_mod_fn");
 
     return 1;
 }
+

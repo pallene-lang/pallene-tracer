@@ -3,16 +3,17 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: BSD-3-Clause
 
-local module = require "examples.dispatch.module"
+local mod_a = require "examples.multimod.module_a"
+local mod_b = require "examples.multimod.module_b"
 
--- luacheck: globals lua_callee_1
-function lua_callee_1()
-    module.module_fn_2()
+-- luacheck: globals some_lua_fn
+function some_lua_fn()
+    mod_b.another_mod_fn()
 end
 
 -- luacheck: globals wrapper
 function wrapper()
-    module.module_fn_1(lua_callee_1)
+    mod_a.some_mod_fn(some_lua_fn)
 end
 
 -- luacheck: globals pallene_tracer_debug_traceback

@@ -3,16 +3,22 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: BSD-3-Clause
 
-local module = require "examples.dispatch.module"
+local module = require "examples.depth_recursion.module"
 
--- luacheck: globals lua_callee_1
-function lua_callee_1()
-    module.module_fn_2()
+-- luacheck: globals lua_fn
+function lua_fn(depth)
+    if depth == 0 then
+        error "Depth reached 0!"
+    end
+
+    module.module_fn(lua_fn, depth - 1)
 end
 
+-- Should be local.
+-- Making it global so that it is visible in the traceback.
 -- luacheck: globals wrapper
 function wrapper()
-    module.module_fn_1(lua_callee_1)
+    lua_fn(10)
 end
 
 -- luacheck: globals pallene_tracer_debug_traceback

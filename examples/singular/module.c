@@ -23,7 +23,7 @@
 #define MODULE_SETLINE()                                \
     pallene_tracer_setline(cont, __LINE__ + 1)
 #define MODULE_C_FRAMEEXIT()                            \
-    pallene_tracer_frameexit(cont);
+    pallene_tracer_frameexit(cont)
 
 /* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
 #define PREPARE_FINALIZER()                             \
@@ -43,13 +43,13 @@
 /* The finalizer will get rid of all the C interface frames
    as well. */
 #define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base);
+    lua_settop(L, _base)
 
 void lifes_good_fn(lua_State *L, pt_cont_t *cont) {
     MODULE_C_FRAMEENTER();
 
     MODULE_SETLINE();
-    luaL_error(L, "Lifes !good");
+    luaL_error(L, "Life's !good");
 
     MODULE_C_FRAMEEXIT();
 }
@@ -74,7 +74,6 @@ int luaopen_examples_singular_module(lua_State *L) {
 
     /* One very good way to integrate our stack userdatum and finalizer
       object is by using Lua upvalues. */
-
     /* ---- singular_fn_1 ---- */
     lua_pushlightuserdata(L, (void *) cont);
     /* `pallene_tracer_init` function pushes the frameexit finalizer to the stack. */

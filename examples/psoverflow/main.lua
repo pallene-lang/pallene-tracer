@@ -3,16 +3,11 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: BSD-3-Clause
 
-local module = require "examples.dispatch.module"
-
--- luacheck: globals lua_callee_1
-function lua_callee_1()
-    module.module_fn_2()
-end
+local module = require "examples.psoverflow.module"
 
 -- luacheck: globals wrapper
 function wrapper()
-    module.module_fn_1(lua_callee_1)
+    module.module_fn()
 end
 
 -- luacheck: globals pallene_tracer_debug_traceback

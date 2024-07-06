@@ -21,7 +21,7 @@ it("Dispatch", function()
 Runtime error: examples/dispatch/main.lua:10: Error from an untracked C function, which has no trace in Lua callstack!
 Stack traceback:
     examples/dispatch/module.c:49: in function 'some_untracked_c_function'
-    examples/dispatch/module.c:92: in function 'module_fn_2'
+    examples/dispatch/module.c:93: in function 'module_fn_2'
     examples/dispatch/main.lua:10: in function 'lua_callee_1'
     examples/dispatch/module.c:62: in function 'module_fn_1'
     examples/dispatch/main.lua:15: in function 'wrapper'
@@ -33,7 +33,7 @@ end)
 
 it("Singular", function()
     assert_example("singular", [[
-Runtime error: examples/singular/main.lua:10: Lifes !good
+Runtime error: examples/singular/main.lua:10: Life's !good
 Stack traceback:
     examples/singular/module.c:52: in function 'lifes_good_fn'
     examples/singular/module.c:62: in function 'singular_fn_1'
@@ -41,6 +41,89 @@ Stack traceback:
     examples/singular/main.lua:15: in function 'wrapper'
     C: in function 'xpcall'
     examples/singular/main.lua:19: in <main>
+    C: in function '<?>'
+]])
+end)
+
+
+it("Multi-module", function()
+    assert_example("multimod", [[
+Runtime error: examples/multimod/main.lua:11: Error from another module!
+Stack traceback:
+    examples/multimod/module_b.c:50: in function 'another_mod_fn'
+    examples/multimod/main.lua:11: in function 'some_lua_fn'
+    examples/multimod/module_a.c:50: in function 'some_mod_fn'
+    examples/multimod/main.lua:16: in function 'wrapper'
+    C: in function 'xpcall'
+    examples/multimod/main.lua:20: in <main>
+    C: in function '<?>'
+]])
+end)
+
+it("Pallene Stack Overflow", function()
+    assert_example("psoverflow", [[
+Runtime error: examples/psoverflow/main.lua:10: pallene callstack overflow
+Stack traceback:
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+
+    ... (Skipped 99983 frames) ...
+
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:60: in function 'module_fn'
+    examples/psoverflow/main.lua:10: in function 'wrapper'
+    C: in function 'xpcall'
+    examples/psoverflow/main.lua:14: in <main>
+    C: in function '<?>'
+]])
+end)
+
+it("Depth recursion", function()
+    assert_example("depth_recursion", [[
+Runtime error: examples/depth_recursion/main.lua:11: Depth reached 0!
+Stack traceback:
+    C: in function 'error'
+    examples/depth_recursion/main.lua:11: in function 'lua_fn'
+    examples/depth_recursion/module.c:64: in function 'module_fn'
+    examples/depth_recursion/main.lua:14: in function 'lua_fn'
+    examples/depth_recursion/module.c:64: in function 'module_fn'
+    examples/depth_recursion/main.lua:14: in function 'lua_fn'
+    examples/depth_recursion/module.c:64: in function 'module_fn'
+    examples/depth_recursion/main.lua:14: in function 'lua_fn'
+    examples/depth_recursion/module.c:64: in function 'module_fn'
+    examples/depth_recursion/main.lua:14: in function 'lua_fn'
+    examples/depth_recursion/module.c:64: in function 'module_fn'
+    examples/depth_recursion/main.lua:14: in function 'lua_fn'
+    examples/depth_recursion/main.lua:21: in function 'wrapper'
+    C: in function 'xpcall'
+    examples/depth_recursion/main.lua:25: in <main>
+    C: in function '<?>'
+]])
+end)
+
+it("Anonymous Lua Fn", function()
+    assert_example("anon_lua", [[
+Runtime error: examples/anon_lua/main.lua:9: Error from an untracked C function, which has no trace in Lua callstack!
+Stack traceback:
+    examples/anon_lua/module.c:49: in function 'some_untracked_c_function'
+    examples/anon_lua/module.c:93: in function 'module_fn_2'
+    examples/anon_lua/main.lua:9: in function '<?>'
+    examples/anon_lua/module.c:62: in function 'module_fn_1'
+    examples/anon_lua/main.lua:13: in function '<?>'
+    C: in function 'xpcall'
+    examples/anon_lua/main.lua:17: in <main>
     C: in function '<?>'
 ]])
 end)

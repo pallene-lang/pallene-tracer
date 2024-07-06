@@ -3,15 +3,13 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: BSD-3-Clause
 
-local module = require "examples.dispatch.module"
+local module = require "examples.anon_lua.module"
 
--- luacheck: globals lua_callee_1
-function lua_callee_1()
+local function lua_callee_1()
     module.module_fn_2()
 end
 
--- luacheck: globals wrapper
-function wrapper()
+local function wrapper()
     module.module_fn_1(lua_callee_1)
 end
 

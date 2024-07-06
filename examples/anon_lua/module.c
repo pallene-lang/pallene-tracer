@@ -107,7 +107,7 @@ int module_fn_2_lua(lua_State *L) {
     return 0;
 }
 
-int luaopen_examples_dispatch_module(lua_State *L) {
+int luaopen_examples_anon_lua_module(lua_State *L) {
     /* Our stack. */
     pt_cont_t *cont = pallene_tracer_init(L);
 

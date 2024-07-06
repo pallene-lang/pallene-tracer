@@ -5,7 +5,7 @@
 
 local module = require "examples.singular.module"
 
--- luacheck: globals some_lua_fn singular_fn_1
+-- luacheck: globals some_lua_fn
 function some_lua_fn()
     module.singular_fn_1()
 end
