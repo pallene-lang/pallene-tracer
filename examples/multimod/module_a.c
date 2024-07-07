@@ -9,10 +9,11 @@
 #include <ptracer.h>
 
 /* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
+/* The finalizer fn will run whenever out of scope. */
 #define PREPARE_FINALIZER()                             \
     int _base = lua_gettop(L);                          \
     lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1); /* The finalizer fn will run whenever out of scope. */
+    lua_toclose(L, -1)
 #define MODULE_LUA_FRAMEENTER(sig)                      \
     pt_cont_t *cont = (pt_cont_t *)                     \
         lua_touserdata(L, lua_upvalueindex(1));         \
@@ -77,11 +78,9 @@ int luaopen_examples_multimod_module_a(lua_State *L) {
     pt_cont_t *cont = pallene_tracer_init(L);
 
     lua_newtable(L);
-    int table = lua_gettop(L);
 
     /* One very good way to integrate our stack userdatum and finalizer
       object is by using Lua upvalues. */
-
     /* ---- singular_fn_1 ---- */
     lua_pushlightuserdata(L, (void *) cont);
     /* `pallene_tracer_init` function pushes the frameexit finalizer to the stack. */
