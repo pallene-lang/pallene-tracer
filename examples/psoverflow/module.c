@@ -42,11 +42,17 @@
 #define MODULE_C_FRAMEEXIT()                            \
     pallene_tracer_frameexit(cont)
 
-void trigger_pallene_stack_overflow(lua_State *L, pt_cont_t *cont) {
+void trigger_pallene_stack_overflow(lua_State *L, pt_cont_t *cont, int count) {
     MODULE_C_FRAMEENTER();
 
-    MODULE_SETLINE();
-    trigger_pallene_stack_overflow(L, cont);
+    /* We are not supposed to use this macro. */
+    /* It is used so that we can bypass compiler 
+       warnings for infinite recursion as we are 
+       deliberately triggering the callstack error. */
+    if(count < PALLENE_TRACER_MAX_CALLSTACK) {
+        MODULE_SETLINE();
+        trigger_pallene_stack_overflow(L, cont, count + 1);
+    }
 
     MODULE_C_FRAMEEXIT();
 }
@@ -57,7 +63,7 @@ void module_fn(lua_State *L, pt_cont_t *cont) {
     /* Set line number to current active frame in the Pallene callstack and
        call the function which is already in the Lua stack. */
     MODULE_SETLINE();
-    trigger_pallene_stack_overflow(L, cont);
+    trigger_pallene_stack_overflow(L, cont, 0);
 
     MODULE_C_FRAMEEXIT();
 }

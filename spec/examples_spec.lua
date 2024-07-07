@@ -64,25 +64,25 @@ it("Pallene Stack Overflow", function()
     assert_example("psoverflow", [[
 Runtime error: examples/psoverflow/main.lua:10: pallene callstack overflow
 Stack traceback:
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
 
     ... (Skipped 99983 frames) ...
 
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:49: in function 'trigger_pallene_stack_overflow'
-    examples/psoverflow/module.c:60: in function 'module_fn'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:54: in function 'trigger_pallene_stack_overflow'
+    examples/psoverflow/module.c:66: in function 'module_fn'
     examples/psoverflow/main.lua:10: in function 'wrapper'
     C: in function 'xpcall'
     examples/psoverflow/main.lua:14: in <main>

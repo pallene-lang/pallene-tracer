@@ -10,4 +10,4 @@ CURRENT_DIR := $(shell realpath --relative-to=$(shell pwd) $(shell dirname $(rea
 .SILENT:
 
 all: 
-	$(CC) -fPIC -g -shared $(CURRENT_DIR)/module.c -o $(CURRENT_DIR)/module.so
+	$(CC) -fPIC $(CFLAGS) -shared $(CURRENT_DIR)/module.c -o $(CURRENT_DIR)/module.so

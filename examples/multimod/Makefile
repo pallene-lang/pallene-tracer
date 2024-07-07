@@ -11,5 +11,5 @@ LIB_DIR := /usr/local/lib
 .SILENT:
 
 all: 
-	$(CC) -fPIC -O2 -shared $(CURRENT_DIR)/module_a.c -o $(CURRENT_DIR)/module_a.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
-	$(CC) -fPIC -O2 -shared $(CURRENT_DIR)/module_b.c -o $(CURRENT_DIR)/module_b.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
+	$(CC) -fPIC $(CFLAGS) -shared $(CURRENT_DIR)/module_a.c -o $(CURRENT_DIR)/module_a.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
+	$(CC) -fPIC $(CFLAGS) -shared $(CURRENT_DIR)/module_b.c -o $(CURRENT_DIR)/module_b.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
