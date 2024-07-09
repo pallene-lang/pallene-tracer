@@ -4,10 +4,9 @@
 # SPDX-License-Identifier: MIT 
 
 CC := gcc
-CURRENT_DIR := $(shell dirname $(MAKEFILE_LIST))
 
 .PHONY :
 .SILENT:
 
 all: 
-	$(CC) -fPIC $(CFLAGS) -shared $(CURRENT_DIR)/module.c -o $(CURRENT_DIR)/module.so
+	$(CC) -fPIC $(CFLAGS) -shared module.c -o module.so

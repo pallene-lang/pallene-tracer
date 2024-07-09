@@ -10,4 +10,4 @@ CURRENT_DIR := $(shell dirname $(MAKEFILE_LIST))
 .SILENT:
 
 all: 
-	$(CC) -fPIC $(CFLAGS) -shared $(CURRENT_DIR)/module.c -o $(CURRENT_DIR)/module.so
+	$(CC) -fPIC $(CFLAGS) -shared module.c -o module.so

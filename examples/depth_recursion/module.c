@@ -30,7 +30,7 @@
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 #define MODULE_C_FRAMEENTER()                           \
     static pt_fn_details_t _details = {                 \
-        .fn_name = __FUNCTION__,                        \
+        .fn_name = __func__,                            \
         .filename = __FILE__                            \
     };                                                  \
     pt_frame_t _frame = {                               \
