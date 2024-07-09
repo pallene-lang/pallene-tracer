@@ -8,11 +8,14 @@ INSTALL_DIR    := /usr/local
 INSTALL_INCDIR := $(INSTALL_DIR)/include
 INSTALL_LIBDIR := $(INSTALL_DIR)/lib
 
-.PHONY: install uninstall clean
+.PHONY: install ptracer_header libptracer uninstall clean
 
-install: libptracer
-	cp lib/ptracer.h $(INSTALL_INCDIR)
+install: ptracer_header libptracer
 	cp libptracer.so $(INSTALL_LIBDIR)
+
+# We need the `ptracer.h` header to be installed first.
+ptracer_header: 
+	cp lib/ptracer.h $(INSTALL_INCDIR)
 
 libptracer:
 	$(CC) -fPIC -O2 -shared src/ptracer.c -o libptracer.so
