@@ -17,7 +17,7 @@
 #include <string.h>
 
 #if LUA_VERSION_RELEASE_NUM < 50400
-#error "Pallene Tracer need atleast Lua 5.4 to work properly"
+#error "Pallene Tracer needs atleast Lua 5.4 to work properly"
 #endif
 
 /* ---------------- MACRO DEFINITIONS ---------------- */
@@ -84,17 +84,17 @@ typedef struct pt_frame {
 
     union {
         pt_fn_details_t *details;
-        lua_CFunction frame_sig;
+        lua_CFunction c_fnptr;
     } shared;
 } pt_frame_t;
 
 /* Out stack is fully heap-allocated stack. We need some structure to hold
    the stack information. This structure will be an Userdatum. */
-/* 'cont' stands for 'container'. */
-typedef struct pt_cont {
+/* 'fnstack' stands for 'fnstackainer'. */
+typedef struct pt_fnstack {
     pt_frame_t *stack;
     int count;
-} pt_cont_t;
+} pt_fnstack_t;
 
 /* ---------------- DATA STRUCTURES END ---------------- */
 
@@ -106,18 +106,19 @@ extern "C" {
 
 /* Initializes the Pallene Tracer. The initialization refers to creating the stack
    if not created, preparing the traceback fn and finalizers. */
+/* This function must only be called from Lua module entry point. */
 /* NOTE: Pushes the finalizer object to the stack. The object has to be closed
    everytime you are in a Lua C function using `lua_toclose(L, idx)` function. */
-PT_API pt_cont_t *pallene_tracer_init(lua_State *L);
+PT_API pt_fnstack_t *pallene_tracer_init(lua_State *L);
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-PT_API void pallene_tracer_frameenter(lua_State *L, pt_cont_t *cont, pt_frame_t *restrict frame);
+PT_API void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame);
 
 /* Sets line number to the topmost frame in the stack. */
-PT_API void pallene_tracer_setline(pt_cont_t *cont, int line);
+PT_API void pallene_tracer_setline(pt_fnstack_t *fnstack, int line);
 
 /* Removes the last frame from the stack. */
-PT_API void pallene_tracer_frameexit(pt_cont_t *cont);
+PT_API void pallene_tracer_frameexit(pt_fnstack_t *fnstack);
 
 /* Pallene Tracer explicit traceback function to show Pallene call-stack
    tracebacks. */
@@ -234,16 +235,16 @@ static int _pallene_tracer_countlevels(lua_State *L) {
 }
 
 /* Counts the number of white and black frames in the Pallene call stack. */
-static void _pallene_tracer_countframes(pt_cont_t *cont, int *mwhite, int *mblack) {
+static void _pallene_tracer_countframes(pt_fnstack_t *fnstack, int *mwhite, int *mblack) {
     *mwhite = *mblack = 0;
 
-    for(int i = 0; i < cont->count; i++) {
-        *mwhite += (cont->stack[i].type == PALLENE_TRACER_FRAME_TYPE_C);
-        *mblack += (cont->stack[i].type == PALLENE_TRACER_FRAME_TYPE_LUA);
+    for(int i = 0; i < fnstack->count; i++) {
+        *mwhite += (fnstack->stack[i].type == PALLENE_TRACER_FRAME_TYPE_C);
+        *mblack += (fnstack->stack[i].type == PALLENE_TRACER_FRAME_TYPE_LUA);
     }
 }
 
-/* Responsible for printing and controlling some of the traceback fn parameters. */
+/* Responsible for printing and fnstackrolling some of the traceback fn parameters. */
 static void _pallene_tracer_dbg_print(const char *buf, bool *ellipsis, int *pframes, int nframes) {
     /* We have printed the frame, even tho it might not be visible ;). */
     (*pframes)++;
@@ -252,7 +253,7 @@ static void _pallene_tracer_dbg_print(const char *buf, bool *ellipsis, int *pfra
     bool should_print = (*pframes <= PALLENE_TRACEBACK_TOP_THRESHOLD)
         || ((nframes - *pframes) <= PALLENE_TRACEBACK_BOTTOM_THRESHOLD);
 
-    if(luai_likely(should_print == true))
+    if(luai_likely(should_print))
         fprintf(stderr, buf);
     else if(*ellipsis) {
         fprintf(stderr, "\n    ... (Skipped %d frames) ...\n\n",
@@ -266,9 +267,9 @@ static void _pallene_tracer_dbg_print(const char *buf, bool *ellipsis, int *pfra
 /* Frees the heap-allocated resources. */
 /* This function will be used as the `__gc` metamethod. */
 static int _pallene_tracer_free_resources(lua_State *L) {
-    pt_cont_t *cont = (pt_cont_t *) lua_touserdata(L, 1);
+    pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, 1);
 
-    free(cont->stack);
+    free(fnstack->stack);
 
     return 0;
 }
@@ -279,19 +280,20 @@ static int _pallene_tracer_free_resources(lua_State *L) {
 
 /* Initializes the Pallene Tracer. The initialization refers to creating the stack
    if not created, preparing the traceback fn and finalizers. */
+/* This function must only be called from Lua module entry point. */
 /* NOTE: Pushes the finalizer object to the stack. The object has to be closed
    everytime you are in a Lua C function using `lua_toclose(L, idx)` function. */
-pt_cont_t *pallene_tracer_init(lua_State *L) {
-    pt_cont_t *cont = NULL;
+pt_fnstack_t *pallene_tracer_init(lua_State *L) {
+    pt_fnstack_t *fnstack = NULL;
 
     /* Try getting the userdata. */
     lua_getfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_CONTAINER_ENTRY);
 
     /* If we don't find any userdata, initialize resources. */
     if(luai_unlikely(lua_isnil(L, -1) == 1)) {
-        cont = (pt_cont_t *) lua_newuserdata(L, sizeof(pt_cont_t));
-        cont->stack = malloc(PALLENE_TRACER_MAX_CALLSTACK * sizeof(pt_frame_t));
-        cont->count = 0;
+        fnstack = (pt_fnstack_t *) lua_newuserdata(L, sizeof(pt_fnstack_t));
+        fnstack->stack = malloc(PALLENE_TRACER_MAX_CALLSTACK * sizeof(pt_frame_t));
+        fnstack->count = 0;
 
         /* Prepare the `__gc` finalizer to free the stack. */
         lua_newtable(L);
@@ -312,7 +314,7 @@ pt_cont_t *pallene_tracer_init(lua_State *L) {
         /* Set finalizer object to registry. */
         lua_setfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_FINALIZER_ENTRY);
 
-        /* Set stack container to registry .*/
+        /* Set stack fnstackainer to registry .*/
         lua_setfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_CONTAINER_ENTRY);
 
         /* The debug traceback fn. */
@@ -321,32 +323,32 @@ pt_cont_t *pallene_tracer_init(lua_State *L) {
         /* Push the finalizer object in the stack. */
         lua_getfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_FINALIZER_ENTRY);
     } else {
-        cont = lua_touserdata(L, -1);
+        fnstack = lua_touserdata(L, -1);
         lua_getfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_FINALIZER_ENTRY);
     }
 
-    return cont;
+    return fnstack;
 }
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-void pallene_tracer_frameenter(lua_State *L, pt_cont_t *cont, pt_frame_t *restrict frame) {
+void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
     /* Have we ran out of stack entries? */
-    if(luai_unlikely(cont->count + 1 >= PALLENE_TRACER_MAX_CALLSTACK)) {
+    if(luai_unlikely(fnstack->count + 1 >= PALLENE_TRACER_MAX_CALLSTACK)) {
         pallene_tracer_runtime_callstack_overflow_error(L);
     }
 
-    cont->stack[cont->count++] = *frame;
+    fnstack->stack[fnstack->count++] = *frame;
 }
 
 /* Sets line number to the topmost frame in the stack. */
-void pallene_tracer_setline(pt_cont_t *cont, int line) {
-    if(luai_likely(cont->count != 0))
-        cont->stack[cont->count - 1].line = line;
+void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
+    if(luai_likely(fnstack->count != 0))
+        fnstack->stack[fnstack->count - 1].line = line;
 }
 
 /* Removes the last frame from the stack. */
-void pallene_tracer_frameexit(pt_cont_t *cont) {
-    cont->count -= (cont->count > 0);
+void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
+    fnstack->count -= (fnstack->count > 0);
 }
 
 /* Helper macro specific to this function only :). */
@@ -355,15 +357,15 @@ void pallene_tracer_frameexit(pt_cont_t *cont) {
    tracebacks. */
 int pallene_tracer_debug_traceback(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_CONTAINER_ENTRY);
-    pt_cont_t *cont = (pt_cont_t *) lua_touserdata(L, -1);
-    pt_frame_t *stack = cont->stack;
+    pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, -1);
+    pt_frame_t *stack = fnstack->stack;
     /* The point where we are in the Pallene stack. */
-    int index = cont->count - 1;
+    int index = fnstack->count - 1;
     lua_pop(L, 1);
 
     /* Max number of white and black frames. */
     int mwhite, mblack;
-    _pallene_tracer_countframes(cont, &mwhite, &mblack);
+    _pallene_tracer_countframes(fnstack, &mwhite, &mblack);
     /* Max levels of Lua stack. */
     int mlevel = _pallene_tracer_countlevels(L);
 
@@ -388,8 +390,8 @@ int pallene_tracer_debug_traceback(lua_State *L) {
     int level = 1;
 
     while(lua_getstack(L, level++, &ar)) {
-        /* Get additional information regarding the frame. */
-        lua_getinfo(L, "Slntf", &ar);
+        /* Get information regarding the frame: name, source, linenumbers etc. */
+        lua_getinfo(L, "Slnf", &ar);
 
         /* If the frame is a C frame. */
         if(lua_iscfunction(L, -1)) {
@@ -400,7 +402,7 @@ int pallene_tracer_debug_traceback(lua_State *L) {
                     check--;
 
                 /* If the frame signature matches, we switch to printing Pallene frames. */
-                if(lua_tocfunction(L, -1) == stack[check].shared.frame_sig) {
+                if(lua_tocfunction(L, -1) == stack[check].shared.c_fnptr) {
                     /* Now print all the frames in Pallene stack. */
                     for(; index > check; index--) {
                         snprintf(buf, 1023, "    %s:%d: in function '%s'\n",
@@ -461,15 +463,15 @@ int pallene_tracer_debug_traceback(lua_State *L) {
    Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
 int pallene_tracer_finalizer(lua_State *L) {
     /* Get the userdata. */
-    pt_cont_t *cont = (pt_cont_t *) lua_touserdata(L, lua_upvalueindex(1));
+    pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, lua_upvalueindex(1));
 
     /* Remove all the frames until last Lua frame. */
-    int idx = cont->count - 1;
-    while(cont->stack[idx].type != PALLENE_TRACER_FRAME_TYPE_LUA)
+    int idx = fnstack->count - 1;
+    while(fnstack->stack[idx].type != PALLENE_TRACER_FRAME_TYPE_LUA)
         idx--;
 
     /* Remove the Lua frame as well. */
-    cont->count = idx;
+    fnstack->count = idx;
 
     return 0;
 }

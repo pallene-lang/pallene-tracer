@@ -16,13 +16,13 @@
     lua_pushvalue(L, lua_upvalueindex(2));              \
     lua_toclose(L, -1)
 #define MODULE_LUA_FRAMEENTER(sig)                      \
-    pt_cont_t *cont = (pt_cont_t *)                     \
-        lua_touserdata(L, lua_upvalueindex(1));         \
+    pt_fnstack_t *fnstack = lua_touserdata(L,           \
+        lua_upvalueindex(1));                           \
     pt_frame_t _frame = {                               \
         .type = PALLENE_TRACER_FRAME_TYPE_LUA,          \
-        .shared = { .frame_sig = sig }                  \
+        .shared = { .c_fnptr = sig }                    \
     };                                                  \
-    pallene_tracer_frameenter(L, cont, &_frame);        \
+    pallene_tracer_frameenter(L, fnstack, &_frame);     \
     PREPARE_FINALIZER()
 #define MODULE_LUA_FRAMEEXIT()                          \
     lua_settop(L, _base)
@@ -37,13 +37,13 @@
         .type = PALLENE_TRACER_FRAME_TYPE_C,            \
         .shared = { .details = &_details }              \
     };                                                  \
-    pallene_tracer_frameenter(L, cont, &_frame)
+    pallene_tracer_frameenter(L, fnstack, &_frame)
 #define MODULE_SETLINE()                                \
-    pallene_tracer_setline(cont, __LINE__ + 1)
+    pallene_tracer_setline(fnstack, __LINE__ + 1)
 #define MODULE_C_FRAMEEXIT()                            \
-    pallene_tracer_frameexit(cont)
+    pallene_tracer_frameexit(fnstack)
 
-void some_untracked_c_function(lua_State *L, pt_cont_t *cont) {
+void some_untracked_c_function(lua_State *L, pt_fnstack_t *fnstack) {
     MODULE_C_FRAMEENTER();
 
     MODULE_SETLINE();
@@ -52,7 +52,7 @@ void some_untracked_c_function(lua_State *L, pt_cont_t *cont) {
     MODULE_C_FRAMEEXIT();
 }
 
-void module_fn_1(lua_State *L, pt_cont_t *cont) {
+void module_fn_1(lua_State *L, pt_fnstack_t *fnstack) {
     MODULE_C_FRAMEENTER();
 
     // Other code...
@@ -79,19 +79,19 @@ int module_fn_1_lua(lua_State *L) {
         luaL_error(L, "Expected parameter 1 to be a function");
 
     /* Now dispatch to an actual C function. */
-    module_fn_1(L, cont);
+    module_fn_1(L, fnstack);
 
     MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 
-void module_fn_2(lua_State *L, pt_cont_t *cont) {
+void module_fn_2(lua_State *L, pt_fnstack_t *fnstack) {
     MODULE_C_FRAMEENTER();
 
     // Other code...
 
     MODULE_SETLINE();
-    some_untracked_c_function(L, cont);
+    some_untracked_c_function(L, fnstack);
 
     // Other code...
 
@@ -102,7 +102,7 @@ int module_fn_2_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(module_fn_2_lua);
 
     /* Now dispatch to an actual C function. */
-    module_fn_2(L, cont);
+    module_fn_2(L, fnstack);
 
     MODULE_LUA_FRAMEEXIT();
     return 0;
@@ -110,7 +110,7 @@ int module_fn_2_lua(lua_State *L) {
 
 int luaopen_examples_dispatch_module(lua_State *L) {
     /* Our stack. */
-    pt_cont_t *cont = pallene_tracer_init(L);
+    pt_fnstack_t *fnstack = pallene_tracer_init(L);
 
     lua_newtable(L);
     int table = lua_gettop(L);
@@ -118,14 +118,14 @@ int luaopen_examples_dispatch_module(lua_State *L) {
     /* One very good way to integrate our stack userdatum and finalizer
       object is by using Lua upvalues. */
     /* ---- module_fn_1 ---- */
-    lua_pushlightuserdata(L, (void *) cont);
+    lua_pushlightuserdata(L, (void *) fnstack);
     /* `pallene_tracer_init` function pushes the frameexit finalizer to the stack. */
     lua_pushvalue(L, -3);
     lua_pushcclosure(L, module_fn_1_lua, 2);
     lua_setfield(L, table, "module_fn_1");
 
     /* ---- module_fn_2 ---- */
-    lua_pushlightuserdata(L, (void *) cont);
+    lua_pushlightuserdata(L, (void *) fnstack);
     lua_pushvalue(L, -3);
     lua_pushcclosure(L, module_fn_2_lua, 2);
     lua_setfield(L, table, "module_fn_2");
