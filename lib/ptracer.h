@@ -71,7 +71,7 @@ typedef enum frame_type {
 } frame_type_t;
 
 /* Details of the callee function (name, where it is from etc.) */
-/* Optimization Tip: Try making it 'static' for every function. */
+/* Optimization Tip: Try declaring the struct 'static'. */
 typedef struct pt_fn_details {
     const char *const fn_name;
     const char *const filename;
@@ -88,9 +88,8 @@ typedef struct pt_frame {
     } shared;
 } pt_frame_t;
 
-/* Out stack is fully heap-allocated stack. We need some structure to hold
+/* Our stack is fully heap-allocated stack. We need some structure to hold
    the stack information. This structure will be an Userdatum. */
-/* 'fnstack' stands for 'fnstackainer'. */
 typedef struct pt_fnstack {
     pt_frame_t *stack;
     int count;
@@ -108,7 +107,7 @@ extern "C" {
    if not created, preparing the traceback fn and finalizers. */
 /* This function must only be called from Lua module entry point. */
 /* NOTE: Pushes the finalizer object to the stack. The object has to be closed
-   everytime you are in a Lua C function using `lua_toclose(L, idx)` function. */
+   everytime you are in a Lua C function using `lua_toclose(L, idx)`. */
 PT_API pt_fnstack_t *pallene_tracer_init(lua_State *L);
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
@@ -124,15 +123,15 @@ PT_API void pallene_tracer_frameexit(pt_fnstack_t *fnstack);
    tracebacks. */
 PT_API int  pallene_tracer_debug_traceback(lua_State *L);
 
-/* When we encounter an error, `pallene_tracer_frameexit()` may not
+/* When we encounter a runtime error, `pallene_tracer_frameexit()` may not
    get called. Therefore, the stack will get corrupted if the previous
-   call-frames are not removed. The finalizer function makes sure that
-   it does not happen. Its guardian angel. */
+   call-frames are not removed. The finalizer function makes sure it
+   does not happen. Its guardian angel. */
 /* The finalizer function will be called from a to-be-closed value (since
    Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
 PT_API int pallene_tracer_finalizer(lua_State *L);
 
-/* When Pallene call-stack is overflowed. */
+/* Runtime error to invoke when Pallene call-stack overflowed. */
 l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
 
 #ifdef __cplusplus
@@ -144,11 +143,12 @@ l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
 #endif // PALLENE_TRACER_H
 
 #if defined(PT_IMPLEMENTATION) && !defined(PT_IMPLEMENTED)
+/* This is implementation guard, making sure we include the implementation just one time. */
 #define PT_IMPLEMENTED
 
 /* ---------------- PRIVATE ---------------- */
 
-/* Name deduction. Can we find a function name? */
+/* Global table name deduction. Can we find a function name? */
 static bool _pallene_tracer_findfield(lua_State *L, int fn_idx, int level) {
     if(level == 0 || !lua_istable(L, -1))
         return false;
@@ -159,7 +159,7 @@ static bool _pallene_tracer_findfield(lua_State *L, int fn_idx, int level) {
         /* We are only interested in String keys. */
         if(lua_type(L, -2) == LUA_TSTRING) {
             /* Avoid "_G" recursion in global table. The global table is also part of
-               global table. */
+               global table :). */
             if(!strcmp(lua_tostring(L, -2), "_G")) {
                 /* Remove value and continue. */
                 lua_pop(L, 1);
@@ -244,7 +244,7 @@ static void _pallene_tracer_countframes(pt_fnstack_t *fnstack, int *mwhite, int 
     }
 }
 
-/* Responsible for printing and fnstackrolling some of the traceback fn parameters. */
+/* Responsible for printing and controlling some of the traceback fn parameters. */
 static void _pallene_tracer_dbg_print(const char *buf, bool *ellipsis, int *pframes, int nframes) {
     /* We have printed the frame, even tho it might not be visible ;). */
     (*pframes)++;
@@ -265,10 +265,9 @@ static void _pallene_tracer_dbg_print(const char *buf, bool *ellipsis, int *pfra
 }
 
 /* Frees the heap-allocated resources. */
-/* This function will be used as the `__gc` metamethod. */
+/* This function will be used as `__gc` metamethod to free our stack. */
 static int _pallene_tracer_free_resources(lua_State *L) {
     pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, 1);
-
     free(fnstack->stack);
 
     return 0;
@@ -282,7 +281,7 @@ static int _pallene_tracer_free_resources(lua_State *L) {
    if not created, preparing the traceback fn and finalizers. */
 /* This function must only be called from Lua module entry point. */
 /* NOTE: Pushes the finalizer object to the stack. The object has to be closed
-   everytime you are in a Lua C function using `lua_toclose(L, idx)` function. */
+   everytime you are in a Lua C function using `lua_toclose(L, idx)`. */
 pt_fnstack_t *pallene_tracer_init(lua_State *L) {
     pt_fnstack_t *fnstack = NULL;
 
@@ -314,7 +313,7 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
         /* Set finalizer object to registry. */
         lua_setfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_FINALIZER_ENTRY);
 
-        /* Set stack fnstackainer to registry .*/
+        /* Set stack function stack container to registry .*/
         lua_setfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_CONTAINER_ENTRY);
 
         /* The debug traceback fn. */
@@ -380,7 +379,8 @@ int pallene_tracer_debug_traceback(lua_State *L) {
         + PALLENE_TRACEBACK_BOTTOM_THRESHOLD);
 
     /* Buffer to store for a single frame line to be printed. */
-    char buf[1024];
+    int _BUFSIZ = 1023;
+    char buf[_BUFSIZ + 1];
 
     const char *message = lua_tostring(L, 1);
     fprintf(stderr, "Runtime error: %s\nStack traceback:\n", message);
@@ -396,16 +396,16 @@ int pallene_tracer_debug_traceback(lua_State *L) {
         /* If the frame is a C frame. */
         if(lua_iscfunction(L, -1)) {
             if(index >= 0) {
-                /* Check whether this frame is tracked (Pallene C frames). */
+                /* Check whether this frame is tracked (C interface frames). */
                 int check = index;
                 while(stack[check].type != PALLENE_TRACER_FRAME_TYPE_LUA)
                     check--;
 
-                /* If the frame signature matches, we switch to printing Pallene frames. */
+                /* If the frame matches, we switch to printing Pallene frames. */
                 if(lua_tocfunction(L, -1) == stack[check].shared.c_fnptr) {
                     /* Now print all the frames in Pallene stack. */
                     for(; index > check; index--) {
-                        snprintf(buf, 1023, "    %s:%d: in function '%s'\n",
+                        snprintf(buf, _BUFSIZ, "    %s:%d: in function '%s'\n",
                             stack[index].shared.details->filename,
                             stack[index].line, stack[index].shared.details->fn_name);
                         DBG_PRINT();
@@ -427,7 +427,7 @@ int pallene_tracer_debug_traceback(lua_State *L) {
                 lua_pushfstring(L, "%s", lua_tostring(L, -1));
             else lua_pushliteral(L, "<?>");
 
-            snprintf(buf, 1023, "    C: in function '%s'\n", lua_tostring(L, -1));
+            snprintf(buf, _BUFSIZ, "    C: in function '%s'\n", lua_tostring(L, -1));
             DBG_PRINT();
         } else {
             /* It's a Lua frame. */
@@ -443,7 +443,7 @@ int pallene_tracer_debug_traceback(lua_State *L) {
                 lua_pushfstring(L, "function '%s'", lua_tostring(L, -1));
             else lua_pushliteral(L, "function '<?>'");
 
-            snprintf(buf, 1023, "    %s:%d: in %s\n", ar.short_src,
+            snprintf(buf, _BUFSIZ, "    %s:%d: in %s\n", ar.short_src,
                 ar.currentline, lua_tostring(L, -1));
             DBG_PRINT();
         }
@@ -455,10 +455,10 @@ int pallene_tracer_debug_traceback(lua_State *L) {
 }
 #undef DBG_PRINT
 
-/* When we encounter an error, `pallene_tracer_frameexit()` may not
+/* When we encounter a runtime error, `pallene_tracer_frameexit()` may not
    get called. Therefore, the stack will get corrupted if the previous
-   call-frames are not removed. The finalizer function makes sure that
-   it does not happen. Its guardian angel. */
+   call-frames are not removed. The finalizer function makes sure it
+   does not happen. Its guardian angel. */
 /* The finalizer function will be called from a to-be-closed value (since
    Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
 int pallene_tracer_finalizer(lua_State *L) {
@@ -476,7 +476,7 @@ int pallene_tracer_finalizer(lua_State *L) {
     return 0;
 }
 
-/* When Pallene call-stack is overflowed. */
+/* Runtime error to invoke when Pallene call-stack overflowed. */
 l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L) {
     luaL_error(L, "pallene callstack overflow");
     PALLENE_TRACER_UNREACHABLE;
