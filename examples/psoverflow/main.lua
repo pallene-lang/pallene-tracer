@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local module = require "examples.psoverflow.module"
+local module = require "module"
 
 -- luacheck: globals wrapper
 function wrapper()

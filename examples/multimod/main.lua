@@ -3,8 +3,8 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local mod_a = require "examples.multimod.module_a"
-local mod_b = require "examples.multimod.module_b"
+local mod_a = require "module_a"
+local mod_b = require "module_b"
 
 -- luacheck: globals some_lua_fn
 function some_lua_fn()

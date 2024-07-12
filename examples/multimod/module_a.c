@@ -14,31 +14,29 @@
     int _base = lua_gettop(L);                          \
     lua_pushvalue(L, lua_upvalueindex(2));              \
     lua_toclose(L, -1)
-#define MODULE_LUA_FRAMEENTER(sig)                      \
+
+#define MODULE_LUA_FRAMEENTER(fnptr)                    \
     pt_fnstack_t *fnstack = lua_touserdata(L,           \
         lua_upvalueindex(1));                           \
-    pt_frame_t _frame = {                               \
-        .type = PALLENE_TRACER_FRAME_TYPE_LUA,          \
-        .shared = { .c_fnptr = sig }                    \
-    };                                                  \
+    pt_frame_t _frame =                                 \
+        PALLENE_TRACER_LUA_FRAME(fnptr);                \
     pallene_tracer_frameenter(L, fnstack, &_frame);     \
     PREPARE_FINALIZER()
+
 #define MODULE_LUA_FRAMEEXIT()                          \
     lua_settop(L, _base)
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 #define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details = {                 \
-        .fn_name = __func__,                            \
-        .filename = __FILE__                            \
-    };                                                  \
-    pt_frame_t _frame = {                               \
-        .type = PALLENE_TRACER_FRAME_TYPE_C,            \
-        .shared = { .details = &_details }              \
-    };                                                  \
+    static pt_fn_details_t _details =                   \
+        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
+    pt_frame_t _frame =                                 \
+        PALLENE_TRACER_C_FRAME(_details);               \
     pallene_tracer_frameenter(L, fnstack, &_frame)
+
 #define MODULE_SETLINE()                                \
     pallene_tracer_setline(fnstack, __LINE__ + 1)
+
 #define MODULE_C_FRAMEEXIT()                            \
     pallene_tracer_frameexit(fnstack)
 
@@ -73,7 +71,7 @@ int some_mod_fn_lua(lua_State *L) {
     return 0;
 }
 
-int luaopen_examples_multimod_module_a(lua_State *L) {
+int luaopen_module_a(lua_State *L) {
     /* Our stack. */
     pt_fnstack_t *fnstack = pallene_tracer_init(L);
 
@@ -82,7 +80,7 @@ int luaopen_examples_multimod_module_a(lua_State *L) {
     /* One very good way to integrate our stack userdatum and finalizer
       object is by using Lua upvalues. */
     /* ---- singular_fn_1 ---- */
-    lua_pushlightuserdata(L, (void *) fnstack);
+    lua_pushlightuserdata(L, fnstack);
     /* `pallene_tracer_init` function pushes the frameexit finalizer to the stack. */
     lua_pushvalue(L, -3);
     lua_pushcclosure(L, some_mod_fn_lua, 2);

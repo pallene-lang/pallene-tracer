@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local module = require "examples.singular.module"
+local module = require "module"
 
 -- luacheck: globals some_lua_fn
 function some_lua_fn()

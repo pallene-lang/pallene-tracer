@@ -59,6 +59,31 @@
    do it like this. */
 #define PALLENE_TRACEBACK_BOTTOM_THRESHOLD    8
 
+/* ---- DATA-STRUCTURE HELPER MACROS ---- */
+
+/* Use this macro to fill in the details structure. */
+/* E.U.: 
+       pt_fn_details_t det = PALLENE_TRACER_FN_DETAILS("fn_name", "some_mod.c");
+ */
+#define PALLENE_TRACER_FN_DETAILS(name, fname)    \
+{ .fn_name = name, .filename = fname }
+
+/* Use this macro to fill in the frame structure as a 
+   Lua interface frame. */
+/* E.U.: `pt_frame_t frame = PALLENE_TRACER_LUA_FRAME(lua_fn);` */
+#define PALLENE_TRACER_LUA_FRAME(fnptr)           \
+{ .type = PALLENE_TRACER_FRAME_TYPE_LUA,          \
+  .shared = { .c_fnptr = fnptr } }
+
+/* Use this macro to fill in the frame structure as a
+   C interface frame. */
+/* E.U.: `pt_frame_t frame = PALLENE_TRACER_C_FRAME(_details);` */
+#define PALLENE_TRACER_C_FRAME(detl)              \
+{ .type = PALLENE_TRACER_FRAME_TYPE_C,            \
+  .shared = { .details = &detl } }
+
+/* ---- DATA-STRUCTURE HELPER MACROS END ---- */
+
 /* ---------------- MACRO DEFINITIONS END ---------------- */
 
 /* ---------------- DATA STRUCTURES ---------------- */
