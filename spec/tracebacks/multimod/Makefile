@@ -4,10 +4,9 @@
 # SPDX-License-Identifier: MIT 
 
 CC := gcc
-CURRENT_DIR := $(shell dirname $(MAKEFILE_LIST))
 LIB_DIR := /usr/local/lib
 
-.PHONY :
+.PHONY : all
 .SILENT:
 
 all: 

@@ -5,8 +5,11 @@
 
 CC := gcc
 
-.PHONY :
+.PHONY : all debug
 .SILENT:
 
 all: 
 	$(CC) -fPIC $(CFLAGS) -shared module.c -o module.so
+
+debug: 
+	$(CC) -fPIC $(CFLAGS) -DMODULE_DEBUG -shared module.c -o module.so

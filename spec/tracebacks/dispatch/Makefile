@@ -4,9 +4,8 @@
 # SPDX-License-Identifier: MIT 
 
 CC := gcc
-CURRENT_DIR := $(shell dirname $(MAKEFILE_LIST))
 
-.PHONY :
+.PHONY : all
 .SILENT:
 
 all: 

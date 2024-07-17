@@ -6,7 +6,7 @@
 local util = require "misc.util"
 
 local function assert_example(example, expected_content)
-    local cdir = "examples/"..example.."/";
+    local cdir = "spec/tracebacks/"..example.."/";
     local ok, err = util.execute("cd "..cdir.."&& make")
     assert(ok, err)
 
