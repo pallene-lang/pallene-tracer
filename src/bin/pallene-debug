@@ -1,0 +1,31 @@
+#!/usr/bin/env lua
+
+-- Copyright (c) 2024, The Pallene Developers
+-- Pallene Tracer is licensed under the MIT license.
+-- Please refer to the LICENSE and AUTHORS files for details
+-- SPDX-License-Identifier: MIT
+
+local argparse = require "argparse"
+local _ = require "ptinit"
+
+-- Parse the arguments.
+local opts
+do
+    local p = argparse("pallene-debug", "Pallene debugger script for call-stack backtrace")
+
+    p:argument("lua_script", "Lua file to debug with Pallene module")
+    p:argument("args",       "Arguments passed to Lua script")       :args("*")
+
+    opts = p:parse()
+end
+
+local fn, err = loadfile(opts.lua_script)
+
+-- Was loading and parsing the file successful?
+if not fn then
+    io.stderr:write("pallene-debug: "..err.."\n")
+    os.exit(1)
+end
+
+-- Moment of truth.
+xpcall(fn, pallene_tracer_debug_traceback, table.unpack(opts.args))
