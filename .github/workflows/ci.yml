@@ -49,7 +49,9 @@ jobs:
                   sudo make install
 
             - name: Build
-              run: luarocks --local make
+              run: |
+                  sudo make install
+                  luarocks --local make
 
             - name: Install Busted
               run: luarocks --local install busted
