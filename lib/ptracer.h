@@ -84,6 +84,31 @@
 
 /* ---- DATA-STRUCTURE HELPER MACROS END ---- */
 
+/* ---- API HELPER MACROS ---- */
+
+/* Use this macro the bypass some frameenter boilerplates for Lua interface frames. */
+/* Note: `location` is where the finalizer object is in the stack, acquired from 
+   `pallene_tracer_init()` function. If the object is passed to Lua C functions as an
+   upvalue, this should be `lua_upvalueindex(n)`. Otherwise, it should just be a number 
+   denoting the parameter index where the object is found if passed as a plain parameter
+   to the functon. */
+/* The `var_name` indicates the name of the frame structure variable. */
+#define PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr, location, var_name)    \
+pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr);                          \
+pallene_tracer_frameenter(L, fnstack, &var_name);                               \
+lua_pushvalue(L, (location));                                                   \
+lua_toclose(L, -1);
+
+/* Use this macro the bypass some frameenter boilerplates for C interface frames. */
+/* The `var_name` indicates the name of the frame structure variable. */
+#define PALLENE_TRACER_C_FRAMEENTER(L, fnstack, fn_name, filename, var_name)    \
+pt_fn_details_t var_name##_details =                                            \ 
+    PALLENE_TRACER_FN_DETAILS(fn_name, filename);                               \
+pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details);               \
+pallene_tracer_frameenter(L, fnstack, &var_name);
+
+/* ---- API HELPER MACROS END ---- */
+
 /* ---------------- MACRO DEFINITIONS END ---------------- */
 
 /* ---------------- DATA STRUCTURES ---------------- */

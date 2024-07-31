@@ -10,39 +10,29 @@
 #include <ptracer.h>
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
-#define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details =                   \
-        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
-    pt_frame_t _frame_c =                               \
-        PALLENE_TRACER_C_FRAME(_details);               \
-    pallene_tracer_frameenter(L, fnstack, &_frame_c)
 
-#define MODULE_SETLINE()                                \
+#define MODULE_C_FRAMEENTER()                                    \
+    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame_c)
+
+#define MODULE_SETLINE()                                         \
     pallene_tracer_setline(fnstack, __LINE__ + 1)
 
-#define MODULE_C_FRAMEEXIT()                            \
+#define MODULE_C_FRAMEEXIT()                                     \
     pallene_tracer_frameexit(fnstack)
 
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-/* The finalizer fn will run whenever out of scope. */
-#define PREPARE_FINALIZER()                             \
-    int _base = lua_gettop(L);                          \
-    lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1)
+/* ---------------- FOR C INTERFACE FUNCTIONS END ---------------- */
 
-#define MODULE_LUA_FRAMEENTER(fnptr)                    \
-    pt_fnstack_t *fnstack = lua_touserdata(L,           \
-        lua_upvalueindex(1));                           \
-    pt_frame_t _frame_lua =                             \
-        PALLENE_TRACER_LUA_FRAME(fnptr);                \
-    pallene_tracer_frameenter(L, fnstack, &_frame_lua); \
-    MODULE_C_FRAMEENTER();                              \
-    PREPARE_FINALIZER()
+/* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
 
-/* The finalizer will get rid of all the C interface frames
-   as well. */
-#define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base)
+#define MODULE_LUA_FRAMEENTER(fnptr)                             \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1));                                    \
+    int _base = lua_gettop(L);                                   \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
+        lua_upvalueindex(2), _frame_lua)                         \
+    MODULE_C_FRAMEENTER()
+
+/* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
 
 void lifes_good_fn(lua_State *L, pt_fnstack_t *fnstack) {
     MODULE_C_FRAMEENTER();
@@ -60,7 +50,6 @@ int singular_fn_1(lua_State *L) {
     MODULE_SETLINE();
     lifes_good_fn(L, fnstack);
 
-    MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 

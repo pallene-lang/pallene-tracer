@@ -9,37 +9,29 @@
 #define PT_IMPLEMENTATION
 #include <ptracer.h>
 
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-/* The finalizer fn will run whenever out of scope. */
-#define PREPARE_FINALIZER()                             \
-    int _base = lua_gettop(L);                          \
-    lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1)
+/* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
 
-#define MODULE_LUA_FRAMEENTER(fnptr)                    \
-    pt_fnstack_t *fnstack = lua_touserdata(L,           \
-        lua_upvalueindex(1));                           \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_LUA_FRAME(fnptr);                \
-    pallene_tracer_frameenter(L, fnstack, &_frame);     \
-    PREPARE_FINALIZER()
+#define MODULE_LUA_FRAMEENTER(fnptr)                             \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1));                                    \
+    int _base = lua_gettop(L);                                   \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
+        lua_upvalueindex(2), _frame)
 
-#define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base)
+/* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
-#define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details =                   \
-        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_C_FRAME(_details);               \
-    pallene_tracer_frameenter(L, fnstack, &_frame)
 
-#define MODULE_SETLINE()                                \
+#define MODULE_C_FRAMEENTER()                                    \
+    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
+
+#define MODULE_SETLINE()                                         \
     pallene_tracer_setline(fnstack, __LINE__ + 1)
 
-#define MODULE_C_FRAMEEXIT()                            \
+#define MODULE_C_FRAMEEXIT()                                     \
     pallene_tracer_frameexit(fnstack)
+
+/* ---------------- FOR C INTERFACE FUNCTIONS END ---------------- */
 
 void some_untracked_c_function(lua_State *L, pt_fnstack_t *fnstack) {
     MODULE_C_FRAMEENTER();
@@ -79,7 +71,6 @@ int module_fn_1_lua(lua_State *L) {
     /* Now dispatch to an actual C function. */
     module_fn_1(L, fnstack);
 
-    MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 
@@ -102,7 +93,6 @@ int module_fn_2_lua(lua_State *L) {
     /* Dispatch. */
     module_fn_2(L, fnstack);
 
-    MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 

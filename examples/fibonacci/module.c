@@ -9,59 +9,51 @@
 #include <ptracer.h>
 
 #ifdef MODULE_DEBUG
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-/* The finalizer fn will run whenever out of scope. */
-#define PREPARE_FINALIZER()                             \
-    int _base = lua_gettop(L);                          \
-    lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1)
+/* ---------------- LUA INTERFACE ---------------- */
 
-#define MODULE_LUA_FRAMEENTER(fnptr)                    \
-    pt_fnstack_t *fnstack = lua_touserdata(L,           \
-        lua_upvalueindex(1));                           \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_LUA_FRAME(fnptr);                \
-    pallene_tracer_frameenter(L, fnstack, &_frame);     \
-    PREPARE_FINALIZER()
+#define MODULE_LUA_FRAMEENTER(fnptr)                             \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1));                                    \
+    int _base = lua_gettop(L);                                   \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
+        lua_upvalueindex(2), _frame)
 
-/* Nothing to do here. */
-#define MODULE_LUA_FRAMEEXIT()
+/* ---------------- LUA INTERFACE END ---------------- */
 
-/* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
+/* ---------------- C INTERFACE ---------------- */
+
 #define MODULE_C_PROTO(signature, ...)    signature(pt_fnstack_t *fnstack, __VA_ARGS__)
 #define MODULE_C_CALL(fn_name, ...)       fn_name(fnstack, __VA_ARGS__)
 
-#define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details =                   \
-        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_C_FRAME(_details);               \
-    pallene_tracer_frameenter(L, fnstack, &_frame)
+#define MODULE_C_FRAMEENTER()                                    \
+    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
 
-#define MODULE_C_SETLINE()                              \
+#define MODULE_C_SETLINE()                                         \
     pallene_tracer_setline(fnstack, __LINE__ + 1)
 
-#define MODULE_C_FRAMEEXIT()                            \
+#define MODULE_C_FRAMEEXIT()                                     \
     pallene_tracer_frameexit(fnstack)
-#else
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-#define MODULE_LUA_FRAMEENTER(_)          int _base = lua_gettop(L);
-#define MODULE_LUA_FRAMEEXIT()
 
-/* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
+/* ---------------- C INTERFACE END ---------------- */
+
+#else
+/* ---------------- LUA INTERFACE ---------------- */
+#define MODULE_LUA_FRAMEENTER(_)          int _base = lua_gettop(L);
+
+/* ---------------- C INTERFACE ---------------- */
+
 #define MODULE_C_PROTO(signature, ...)    signature(__VA_ARGS__)
 #define MODULE_C_CALL(fn_name, ...)       fn_name(__VA_ARGS__)
 
 #define MODULE_C_FRAMEENTER()
 #define MODULE_C_SETLINE()
 #define MODULE_C_FRAMEEXIT()
+
+/* ---------------- C INTERFACE END ---------------- */
 #endif // MODULE_DEBUG
 
 #define MODULE_C_RET(expression)      \
     MODULE_C_FRAMEEXIT();             \
-    return (expression)
-#define MODULE_LUA_RET(expression)    \
-    MODULE_LUA_FRAMEEXIT();           \
     return (expression)
 
 MODULE_C_PROTO(int fib, lua_State *L, int n) {
@@ -92,7 +84,7 @@ int fib_lua(lua_State *L) {
     int result = MODULE_C_CALL(fib, L, lua_tointeger(L, -1));
     lua_pushinteger(L, result);
 
-    MODULE_LUA_RET(1);
+    return 1;
 }
 
 int luaopen_module(lua_State *L) {
