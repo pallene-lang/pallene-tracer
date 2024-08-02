@@ -6,7 +6,7 @@
 local module = require "module"
 
 function some_lua_fn()
-    module.singular_fn_1()
+    module.singular_fn()
 end
 
 function wrapper()

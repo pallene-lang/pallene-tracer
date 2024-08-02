@@ -9,47 +9,55 @@
 #define PT_IMPLEMENTATION
 #include <ptracer.h>
 
+/* Here goes user specific macros when Pallene Tracer debug mode is active. */
+#ifdef PALLENE_TRACER_DEBUG
+#define MODULE_GET_FNSTACK                                       \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1))
+#else
+#define MODULE_GET_FNSTACK 
+#endif // PALLENE_TRACER_DEBUG
+
 /* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
 
 #define MODULE_LUA_FRAMEENTER(fnptr)                             \
-    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
-        lua_upvalueindex(1));                                    \
-    int _base = lua_gettop(L);                                   \
+    MODULE_GET_FNSTACK;                                          \
     PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
         lua_upvalueindex(2), _frame)
 
 /* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
 
-/* ---------------- C INTERFACE FUNCTIONS ---------------- */
+/* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 
 #define MODULE_C_FRAMEENTER()                                    \
-    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
+    MODULE_GET_FNSTACK;                                          \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
 
-#define MODULE_SETLINE()                                         \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
+#define MODULE_C_SETLINE()                                       \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
 
 #define MODULE_C_FRAMEEXIT()                                     \
-    pallene_tracer_frameexit(fnstack)
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
 
-/* ---------------- C INTERFACE FUNCTIONS END ---------------- */
+/* ---------------- FOR C INTERFACE FUNCTIONS END ---------------- */
 
-void some_oblivious_c_function(lua_State *L, pt_fnstack_t *fnstack) {
+void some_oblivious_c_function(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     luaL_error(L, "Error from a C function, which has no trace in Lua callstack!");
 
     MODULE_C_FRAMEEXIT();
 }
 
-void module_fn_1(lua_State *L, pt_fnstack_t *fnstack) {
+void module_fn_1(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
-    // Other code...
+    lua_pushvalue(L, 1);
 
     /* Set line number to current active frame in the Pallene callstack and
        call the function which is already in the Lua stack. */
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     lua_call(L, 0, 0);
 
     // Other code...
@@ -58,29 +66,30 @@ void module_fn_1(lua_State *L, pt_fnstack_t *fnstack) {
 }
 
 int module_fn_1_lua(lua_State *L) {
+    int top = lua_gettop(L);
     MODULE_LUA_FRAMEENTER(module_fn_1_lua);
 
-    /* Peep at the macro defintion for `_base`. */
-    if(luai_unlikely(_base < 1)) 
+    /* In Lua interface frames, we always have a finalizer object pushed to the stack by
+       `FIB_LUA_FRAMEENTER()`. */
+    if(luai_unlikely(top < 1)) 
         luaL_error(L, "Expected atleast 1 parameters");
 
-    lua_pushvalue(L, 1);
-    if(luai_unlikely(lua_isfunction(L, -1) == 0)) 
+    if(luai_unlikely(lua_isfunction(L, 1) == 0)) 
         luaL_error(L, "Expected parameter 1 to be a function");
 
     /* Now dispatch to an actual C function. */
-    module_fn_1(L, fnstack);
+    module_fn_1(L);
 
     return 0;
 }
 
-void module_fn_2(lua_State *L, pt_fnstack_t *fnstack) {
+void module_fn_2(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
     // Other code...
 
-    MODULE_SETLINE();
-    some_oblivious_c_function(L, fnstack);
+    MODULE_C_SETLINE();
+    some_oblivious_c_function(L);
 
     // Other code...
 
@@ -91,7 +100,7 @@ int module_fn_2_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(module_fn_2_lua);
 
     /* Dispatch. */
-    module_fn_2(L, fnstack);
+    module_fn_2(L);
 
     return 0;
 }

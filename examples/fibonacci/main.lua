@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local mod = require "module"
-print(mod.fib(40))
+local fibonacci = require "fibonacci"
+print(fibonacci.fib(40))
 -- Uncomment this and trigger an error. You can debug using the 'pallene-debug' script.
--- print(mod.fib(40.0))
+-- print(fibonacci.fib(40.0))

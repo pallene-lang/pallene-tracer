@@ -5,39 +5,14 @@
  * SPDX-License-Identifier: MIT 
  */
 
-/* This time we would be doing dynamic linking. */
-#include <ptracer.h>
+#include "module_include.h"
 
-/* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
-
-#define MODULE_LUA_FRAMEENTER(fnptr)                             \
-    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
-        lua_upvalueindex(1));                                    \
-    int _base = lua_gettop(L);                                   \
-    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
-        lua_upvalueindex(2), _frame)
-
-/* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
-
-/* ---------------- C INTERFACE FUNCTIONS ---------------- */
-
-#define MODULE_C_FRAMEENTER()                                    \
-    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
-
-#define MODULE_SETLINE()                                         \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
-
-#define MODULE_C_FRAMEEXIT()                                     \
-    pallene_tracer_frameexit(fnstack)
-
-/* ---------------- C INTERFACE FUNCTIONS END ---------------- */
-
-void another_mod_fn(lua_State *L, pt_fnstack_t *fnstack) {
+void another_mod_fn(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
     // Other code...
 
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     luaL_error(L, "Error from another module!");
 
     // Other code...
@@ -49,7 +24,7 @@ int another_mod_fn_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(another_mod_fn_lua);
 
     /* Dispatch. */
-    another_mod_fn(L, fnstack);
+    another_mod_fn(L);
 
     return 0;
 }

@@ -9,12 +9,19 @@
 #define PT_IMPLEMENTATION
 #include <ptracer.h>
 
+/* Here goes user specific macros when Pallene Tracer debug mode is active. */
+#ifdef PALLENE_TRACER_DEBUG
+#define MODULE_GET_FNSTACK                                       \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1))
+#else
+#define MODULE_GET_FNSTACK 
+#endif // PALLENE_TRACER_DEBUG
+
 /* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
 
 #define MODULE_LUA_FRAMEENTER(fnptr)                             \
-    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
-        lua_upvalueindex(1));                                    \
-    int _base = lua_gettop(L);                                   \
+    MODULE_GET_FNSTACK;                                          \
     PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
         lua_upvalueindex(2), _frame)
 
@@ -23,17 +30,18 @@
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 
 #define MODULE_C_FRAMEENTER()                                    \
-    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
+    MODULE_GET_FNSTACK;                                          \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
 
-#define MODULE_SETLINE()                                         \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
+#define MODULE_C_SETLINE()                                       \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
 
 #define MODULE_C_FRAMEEXIT()                                     \
-    pallene_tracer_frameexit(fnstack)
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
 
 /* ---------------- FOR C INTERFACE FUNCTIONS END ---------------- */
 
-void trigger_pallene_stack_overflow(lua_State *L, pt_fnstack_t *fnstack, int count) {
+void trigger_pallene_stack_overflow(lua_State *L, int count) {
     MODULE_C_FRAMEENTER();
 
     /* We are not supposed to use this macro. */
@@ -41,20 +49,20 @@ void trigger_pallene_stack_overflow(lua_State *L, pt_fnstack_t *fnstack, int cou
        warnings for infinite recursion as we are 
        deliberately triggering the callstack error. */
     if(count < PALLENE_TRACER_MAX_CALLSTACK) {
-        MODULE_SETLINE();
-        trigger_pallene_stack_overflow(L, fnstack, count + 1);
+        MODULE_C_SETLINE();
+        trigger_pallene_stack_overflow(L, count + 1);
     }
 
     MODULE_C_FRAMEEXIT();
 }
 
-void module_fn(lua_State *L, pt_fnstack_t *fnstack) {
+void module_fn(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
     /* Set line number to current active frame in the Pallene callstack and
        call the function which is already in the Lua stack. */
-    MODULE_SETLINE();
-    trigger_pallene_stack_overflow(L, fnstack, 0);
+    MODULE_C_SETLINE();
+    trigger_pallene_stack_overflow(L, 0);
 
     MODULE_C_FRAMEEXIT();
 }
@@ -63,7 +71,7 @@ int module_fn_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(module_fn_lua);
 
     /* Dispatch */
-    module_fn(L, fnstack);
+    module_fn(L);
 
     return 0;
 }

@@ -9,12 +9,19 @@
 #define PT_IMPLEMENTATION
 #include <ptracer.h>
 
+/* Here goes user specific macros when Pallene Tracer debug mode is active. */
+#ifdef PALLENE_TRACER_DEBUG
+#define MODULE_GET_FNSTACK                                       \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1))
+#else
+#define MODULE_GET_FNSTACK 
+#endif // PALLENE_TRACER_DEBUG
+
 /* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
 
 #define MODULE_LUA_FRAMEENTER(fnptr)                             \
-    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
-        lua_upvalueindex(1));                                    \
-    int _base = lua_gettop(L);                                   \
+    MODULE_GET_FNSTACK;                                          \
     PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
         lua_upvalueindex(2), _frame)
 
@@ -23,18 +30,21 @@
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 
 #define MODULE_C_FRAMEENTER()                                    \
-    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
+    MODULE_GET_FNSTACK;                                          \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
 
-#define MODULE_SETLINE()                                         \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
+#define MODULE_C_SETLINE()                                       \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
 
 #define MODULE_C_FRAMEEXIT()                                     \
-    pallene_tracer_frameexit(fnstack)
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
 
 /* ---------------- FOR C INTERFACE FUNCTIONS END ---------------- */
 
-void module_fn(lua_State *L, pt_fnstack_t *fnstack, int depth) {
+void module_fn(lua_State *L, int depth) {
     MODULE_C_FRAMEENTER();
+
+    lua_pushvalue(L, 1);
 
     if(depth == 0) 
         lua_pushinteger(L, depth);
@@ -42,33 +52,31 @@ void module_fn(lua_State *L, pt_fnstack_t *fnstack, int depth) {
 
     /* Set line number to current active frame in the Pallene callstack and
        call the function which is already in the Lua stack. */
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     lua_call(L, 1, 0);
 
     MODULE_C_FRAMEEXIT();
 }
 
 int module_fn_lua(lua_State *L) {
+    int top = lua_gettop(L);
     MODULE_LUA_FRAMEENTER(module_fn_lua);
 
     /* Look at the macro definitions. */
-    if(luai_unlikely(_base < 2)) 
+    if(luai_unlikely(top < 2)) 
         luaL_error(L, "Expected atleast 2 parameters");
 
     /* ---- `lua_fn` ---- */
-    lua_pushvalue(L, 1);
-    if(luai_unlikely(lua_isfunction(L, -1) == 0)) 
+    if(luai_unlikely(lua_isfunction(L, 1) == 0)) 
         luaL_error(L, "Expected the first parameter to be a function");
 
-    lua_pushvalue(L, 2);
-    if(luai_unlikely(lua_isinteger(L, -1) == 0)) 
+    if(luai_unlikely(lua_isinteger(L, 2) == 0)) 
         luaL_error(L, "Expected the second parameter to be an integer");
 
-    int depth = lua_tointeger(L, -1);
-    lua_pop(L, 1);
+    int depth = lua_tointeger(L, 2);
 
     /* Dispatch. */
-    module_fn(L, fnstack, depth);
+    module_fn(L, depth);
 
     return 0;
 }

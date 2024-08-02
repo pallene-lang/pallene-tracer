@@ -6,38 +6,15 @@
  */
 
 /* This time we would be doing dynamic linking. */
-#include <ptracer.h>
+#include "module_include.h"
 
-/* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
-
-#define MODULE_LUA_FRAMEENTER(fnptr)                             \
-    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
-        lua_upvalueindex(1));                                    \
-    int _base = lua_gettop(L);                                   \
-    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
-        lua_upvalueindex(2), _frame)
-
-/* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
-
-/* ---------------- C INTERFACE FUNCTIONS ---------------- */
-
-#define MODULE_C_FRAMEENTER()                                    \
-    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, _frame)
-
-#define MODULE_SETLINE()                                         \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
-
-#define MODULE_C_FRAMEEXIT()                                     \
-    pallene_tracer_frameexit(fnstack)
-
-/* ---------------- C INTERFACE FUNCTIONS END ---------------- */
-
-void some_mod_fn(lua_State *L, pt_fnstack_t *fnstack) {
+void some_mod_fn(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
-    // Other code...
+    /* The lua function which is passed to us. */
+    lua_pushvalue(L, 1);
 
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     lua_call(L, 0, 0);
 
     // Other code...
@@ -46,18 +23,18 @@ void some_mod_fn(lua_State *L, pt_fnstack_t *fnstack) {
 }
 
 int some_mod_fn_lua(lua_State *L) {
+    int top = lua_gettop(L);
     MODULE_LUA_FRAMEENTER(some_mod_fn_lua);
 
     /* Look at the macro definition. */
-    if(_base < 1) 
+    if(luai_unlikely(top < 1)) 
         luaL_error(L, "Expected atleast 1 argument");
 
-    lua_pushvalue(L, 1);
-    if(luai_unlikely(lua_isfunction(L, -1) == 0))
+    if(luai_unlikely(lua_isfunction(L, 1) == 0))
         luaL_error(L, "Expected the first argument to be a function");
 
     /* Dispatch. */
-    some_mod_fn(L, fnstack);
+    some_mod_fn(L);
 
     return 0;
 }

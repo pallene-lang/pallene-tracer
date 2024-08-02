@@ -59,6 +59,27 @@
    do it like this. */
 #define PALLENE_TRACEBACK_BOTTOM_THRESHOLD    8
 
+/* API wrapper macros. Using these wrappers instead is raw functions
+ * are highly recommended. */
+#ifdef PALLENE_TRACER_DEBUG
+#define PALLENE_TRACER_FRAMEENTER(L, fnstack, frame)    pallene_tracer_frameenter(L, fnstack, frame)
+#define PALLENE_TRACER_SETLINE(fnstack, line)           pallene_tracer_setline(fnstack, line)
+#define PALLENE_TRACER_FRAMEEXIT(fnstack)               pallene_tracer_frameexit(fnstack)
+
+#else 
+#define PALLENE_TRACER_FRAMEENTER(L, fnstack, frame) 
+#define PALLENE_TRACER_SETLINE(fnstack, line) 
+#define PALLENE_TRACER_FRAMEEXIT(fnstack) 
+#endif // PALLENE_TRACER_DEBUG
+
+/* Not part of the API. */
+#ifdef PALLENE_TRACER_DEBUG
+#define _PALLENE_TRACER_FINALIZER(L, location)           lua_pushvalue(L, (location));    \
+    lua_toclose(L, -1);
+#else
+#define _PALLENE_TRACER_FINALIZER(L, location) 
+#endif
+
 /* ---- DATA-STRUCTURE HELPER MACROS ---- */
 
 /* Use this macro to fill in the details structure. */
@@ -92,20 +113,28 @@
    upvalue, this should be `lua_upvalueindex(n)`. Otherwise, it should just be a number 
    denoting the parameter index where the object is found if passed as a plain parameter
    to the functon. */
-/* The `var_name` indicates the name of the frame structure variable. */
+/* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
 #define PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr, location, var_name)    \
 pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr);                          \
-pallene_tracer_frameenter(L, fnstack, &var_name);                               \
-lua_pushvalue(L, (location));                                                   \
-lua_toclose(L, -1);
+PALLENE_TRACER_FRAMEENTER(L, fnstack, &var_name);                               \
+_PALLENE_TRACER_FINALIZER(L, location)
 
 /* Use this macro the bypass some frameenter boilerplates for C interface frames. */
-/* The `var_name` indicates the name of the frame structure variable. */
+/* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
 #define PALLENE_TRACER_C_FRAMEENTER(L, fnstack, fn_name, filename, var_name)    \
 pt_fn_details_t var_name##_details =                                            \ 
     PALLENE_TRACER_FN_DETAILS(fn_name, filename);                               \
 pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details);               \
-pallene_tracer_frameenter(L, fnstack, &var_name);
+PALLENE_TRACER_FRAMEENTER(L, fnstack, &var_name);
+
+/* -- GENERIC MACROS -- */
+
+/* FOR NORMAL C MODULES THESE MACROS SHOULD SUFFICE.  */
+#define PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, var_name)               \
+    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, var_name)
+
+#define PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)                               \
+    PALLENE_TRACER_SETLINE(fnstack, __LINE__ + 1)
 
 /* ---- API HELPER MACROS END ---- */
 
@@ -332,7 +361,10 @@ static int _pallene_tracer_free_resources(lua_State *L) {
 /* This function must only be called from Lua module entry point. */
 /* NOTE: Pushes the finalizer object to the stack. The object has to be closed
    everytime you are in a Lua C function using `lua_toclose(L, idx)`. */
+/* ALSO NOTE: The stack and finalizer object would be returned if and only if `PALLENE_TRACER_DEBUG`
+   is set. Otherwise, a NULL pointer would be returned alongside a NIL value pushed onto the stack. */
 pt_fnstack_t *pallene_tracer_init(lua_State *L) {
+#ifdef PALLENE_TRACER_DEBUG
     pt_fnstack_t *fnstack = NULL;
 
     /* Try getting the userdata. */
@@ -377,6 +409,11 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
     }
 
     return fnstack;
+#else
+    /* No debug mode, no stack and finalizer object. Regardless we need to fill in the blanks. */
+    lua_pushnil(L);
+    return NULL;
+#endif // PALLENE_TRACER_DEBUG
 }
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
