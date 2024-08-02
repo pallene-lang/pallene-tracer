@@ -10,13 +10,13 @@
 #include <ptracer.h>
 
 /* Here goes user specific macros when Pallene Tracer debug mode is active. */
-#ifdef PALLENE_TRACER_DEBUG
+#ifdef PT_DEBUG
 #define MODULE_GET_FNSTACK                                       \
     pt_fnstack_t *fnstack = lua_touserdata(L,                    \
         lua_upvalueindex(1))
 #else
 #define MODULE_GET_FNSTACK 
-#endif // PALLENE_TRACER_DEBUG
+#endif // PT_DEBUG
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
 

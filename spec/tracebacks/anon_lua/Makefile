@@ -9,4 +9,4 @@ CC := gcc
 .SILENT:
 
 all: 
-	$(CC) -fPIC -DPALLENE_TRACER_DEBUG $(CFLAGS) -shared module.c -o module.so
+	$(CC) -fPIC -DPT_DEBUG $(CFLAGS) -shared module.c -o module.so

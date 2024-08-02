@@ -10,7 +10,6 @@
 
 #include <lua.h>
 #include <lauxlib.h>
-#include <luacore.h>
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -24,8 +23,10 @@
 
 #if defined(__GNUC__) || defined(__clang__) 
 #define PALLENE_TRACER_UNREACHABLE    __builtin_unreachable()
+#define pt_noret                      __attribute__((noreturn)) void
 #elif defined(_MSC_VER) // MSVC
 #define PALLENE_TRACER_UNREACHABLE    __assume(false)
+#define pt_noret                      __declspec(noreturn) void
 #endif
 
 #ifdef PT_BUILD_AS_DLL
@@ -61,7 +62,7 @@
 
 /* API wrapper macros. Using these wrappers instead is raw functions
  * are highly recommended. */
-#ifdef PALLENE_TRACER_DEBUG
+#ifdef PT_DEBUG
 #define PALLENE_TRACER_FRAMEENTER(L, fnstack, frame)    pallene_tracer_frameenter(L, fnstack, frame)
 #define PALLENE_TRACER_SETLINE(fnstack, line)           pallene_tracer_setline(fnstack, line)
 #define PALLENE_TRACER_FRAMEEXIT(fnstack)               pallene_tracer_frameexit(fnstack)
@@ -70,15 +71,15 @@
 #define PALLENE_TRACER_FRAMEENTER(L, fnstack, frame) 
 #define PALLENE_TRACER_SETLINE(fnstack, line) 
 #define PALLENE_TRACER_FRAMEEXIT(fnstack) 
-#endif // PALLENE_TRACER_DEBUG
+#endif // PT_DEBUG
 
 /* Not part of the API. */
-#ifdef PALLENE_TRACER_DEBUG
+#ifdef PT_DEBUG
 #define _PALLENE_TRACER_FINALIZER(L, location)           lua_pushvalue(L, (location));    \
     lua_toclose(L, -1);
 #else
 #define _PALLENE_TRACER_FINALIZER(L, location) 
-#endif
+#endif // PT_DEBUG
 
 /* ---- DATA-STRUCTURE HELPER MACROS ---- */
 
@@ -211,7 +212,7 @@ PT_API int  pallene_tracer_debug_traceback(lua_State *L);
 PT_API int pallene_tracer_finalizer(lua_State *L);
 
 /* Runtime error to invoke when Pallene call-stack overflowed. */
-l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
+pt_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
 
 #ifdef __cplusplus
 }
@@ -361,10 +362,10 @@ static int _pallene_tracer_free_resources(lua_State *L) {
 /* This function must only be called from Lua module entry point. */
 /* NOTE: Pushes the finalizer object to the stack. The object has to be closed
    everytime you are in a Lua C function using `lua_toclose(L, idx)`. */
-/* ALSO NOTE: The stack and finalizer object would be returned if and only if `PALLENE_TRACER_DEBUG`
+/* ALSO NOTE: The stack and finalizer object would be returned if and only if `PT_DEBUG`
    is set. Otherwise, a NULL pointer would be returned alongside a NIL value pushed onto the stack. */
 pt_fnstack_t *pallene_tracer_init(lua_State *L) {
-#ifdef PALLENE_TRACER_DEBUG
+#ifdef PT_DEBUG
     pt_fnstack_t *fnstack = NULL;
 
     /* Try getting the userdata. */
@@ -413,7 +414,7 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
     /* No debug mode, no stack and finalizer object. Regardless we need to fill in the blanks. */
     lua_pushnil(L);
     return NULL;
-#endif // PALLENE_TRACER_DEBUG
+#endif // PT_DEBUG
 }
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
@@ -564,7 +565,7 @@ int pallene_tracer_finalizer(lua_State *L) {
 }
 
 /* Runtime error to invoke when Pallene call-stack overflowed. */
-l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L) {
+pt_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L) {
     luaL_error(L, "pallene callstack overflow");
     PALLENE_TRACER_UNREACHABLE;
 }

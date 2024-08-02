@@ -12,4 +12,4 @@ all:
 	$(CC) -fPIC $(CFLAGS) -shared fibonacci.c -o fibonacci.so
 
 debug: 
-	$(CC) -fPIC $(CFLAGS) -DPALLENE_TRACER_DEBUG -shared fibonacci.c -o fibonacci.so
+	$(CC) -fPIC $(CFLAGS) -DPT_DEBUG -shared fibonacci.c -o fibonacci.so
