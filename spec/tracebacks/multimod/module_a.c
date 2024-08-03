@@ -6,46 +6,15 @@
  */
 
 /* This time we would be doing dynamic linking. */
-#include <ptracer.h>
+#include "module_include.h"
 
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-/* The finalizer fn will run whenever out of scope. */
-#define PREPARE_FINALIZER()                             \
-    int _base = lua_gettop(L);                          \
-    lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1)
-
-#define MODULE_LUA_FRAMEENTER(fnptr)                    \
-    pt_fnstack_t *fnstack = lua_touserdata(L,           \
-        lua_upvalueindex(1));                           \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_LUA_FRAME(fnptr);                \
-    pallene_tracer_frameenter(L, fnstack, &_frame);     \
-    PREPARE_FINALIZER()
-
-#define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base)
-
-/* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
-#define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details =                   \
-        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_C_FRAME(_details);               \
-    pallene_tracer_frameenter(L, fnstack, &_frame)
-
-#define MODULE_SETLINE()                                \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
-
-#define MODULE_C_FRAMEEXIT()                            \
-    pallene_tracer_frameexit(fnstack)
-
-void some_mod_fn(lua_State *L, pt_fnstack_t *fnstack) {
+void some_mod_fn(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
-    // Other code...
+    /* The lua function which is passed to us. */
+    lua_pushvalue(L, 1);
 
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     lua_call(L, 0, 0);
 
     // Other code...
@@ -54,20 +23,19 @@ void some_mod_fn(lua_State *L, pt_fnstack_t *fnstack) {
 }
 
 int some_mod_fn_lua(lua_State *L) {
+    int top = lua_gettop(L);
     MODULE_LUA_FRAMEENTER(some_mod_fn_lua);
 
     /* Look at the macro definition. */
-    if(_base < 1) 
+    if(luai_unlikely(top < 1)) 
         luaL_error(L, "Expected atleast 1 argument");
 
-    lua_pushvalue(L, 1);
-    if(luai_unlikely(lua_isfunction(L, -1) == 0))
+    if(luai_unlikely(lua_isfunction(L, 1) == 0))
         luaL_error(L, "Expected the first argument to be a function");
 
     /* Dispatch. */
-    some_mod_fn(L, fnstack);
+    some_mod_fn(L);
 
-    MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 

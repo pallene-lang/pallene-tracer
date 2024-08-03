@@ -9,7 +9,7 @@ CC := gcc
 .SILENT:
 
 all: 
-	$(CC) -fPIC $(CFLAGS) -shared module.c -o module.so
+	$(CC) -fPIC $(CFLAGS) -shared fibonacci.c -o fibonacci.so
 
 debug: 
-	$(CC) -fPIC $(CFLAGS) -DMODULE_DEBUG -shared module.c -o module.so
+	$(CC) -fPIC $(CFLAGS) -DPT_DEBUG -shared fibonacci.c -o fibonacci.so

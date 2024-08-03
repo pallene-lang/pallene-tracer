@@ -5,47 +5,14 @@
  * SPDX-License-Identifier: MIT 
  */
 
-/* This time we would be doing dynamic linking. */
-#include <ptracer.h>
+#include "module_include.h"
 
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-/* The finalizer fn will run whenever out of scope. */
-#define PREPARE_FINALIZER()                             \
-    int _base = lua_gettop(L);                          \
-    lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1)
-
-#define MODULE_LUA_FRAMEENTER(fnptr)                    \
-    pt_fnstack_t *fnstack = lua_touserdata(L,           \
-        lua_upvalueindex(1));                           \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_LUA_FRAME(fnptr);                \
-    pallene_tracer_frameenter(L, fnstack, &_frame);     \
-    PREPARE_FINALIZER()
-
-#define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base)
-
-/* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
-#define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details =                   \
-        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_C_FRAME(_details);               \
-    pallene_tracer_frameenter(L, fnstack, &_frame)
-
-#define MODULE_SETLINE()                                \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
-
-#define MODULE_C_FRAMEEXIT()                            \
-    pallene_tracer_frameexit(fnstack)
-
-void another_mod_fn(lua_State *L, pt_fnstack_t *fnstack) {
+void another_mod_fn(lua_State *L) {
     MODULE_C_FRAMEENTER();
 
     // Other code...
 
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     luaL_error(L, "Error from another module!");
 
     // Other code...
@@ -57,9 +24,8 @@ int another_mod_fn_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(another_mod_fn_lua);
 
     /* Dispatch. */
-    another_mod_fn(L, fnstack);
+    another_mod_fn(L);
 
-    MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 

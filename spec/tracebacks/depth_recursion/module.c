@@ -9,49 +9,42 @@
 #define PT_IMPLEMENTATION
 #include <ptracer.h>
 
-/* ---------------- FOR LUA INTERFACE FUNCTIONS ---------------- */
-/* The finalizer fn will run whenever out of scope. */
-#define PREPARE_FINALIZER()                             \
-    int _base = lua_gettop(L);                          \
-    lua_pushvalue(L, lua_upvalueindex(2));              \
-    lua_toclose(L, -1)
+/* Here goes user specific macros when Pallene Tracer debug mode is active. */
+#ifdef PT_DEBUG
+#define MODULE_GET_FNSTACK                                       \
+    pt_fnstack_t *fnstack = lua_touserdata(L,                    \
+        lua_upvalueindex(1))
+#else
+#define MODULE_GET_FNSTACK 
+#endif // PT_DEBUG
 
-#define MODULE_LUA_FRAMEENTER(fnptr)                    \
-    pt_fnstack_t *fnstack = lua_touserdata(L,           \
-        lua_upvalueindex(1));                           \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_LUA_FRAME(fnptr);                \
-    pallene_tracer_frameenter(L, fnstack, &_frame);     \
-    PREPARE_FINALIZER()
+/* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
 
-#define MODULE_LUA_FRAMEEXIT()                          \
-    lua_settop(L, _base)
+#define MODULE_LUA_FRAMEENTER(fnptr)                             \
+    MODULE_GET_FNSTACK;                                          \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
+        lua_upvalueindex(2), _frame)
+
+/* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */
-#define MODULE_C_FRAMEENTER()                           \
-    static pt_fn_details_t _details =                   \
-        PALLENE_TRACER_FN_DETAILS(__func__, __FILE__);  \
-    pt_frame_t _frame =                                 \
-        PALLENE_TRACER_C_FRAME(_details);               \
-    pallene_tracer_frameenter(L, fnstack, &_frame)
 
-#define MODULE_SETLINE()                                \
-    pallene_tracer_setline(fnstack, __LINE__ + 1)
+#define MODULE_C_FRAMEENTER()                                    \
+    MODULE_GET_FNSTACK;                                          \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
 
-#define MODULE_C_FRAMEEXIT()                            \
-    pallene_tracer_frameexit(fnstack)
+#define MODULE_C_SETLINE()                                       \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
 
-void some_untracked_c_function(lua_State *L, pt_fnstack_t *fnstack) {
+#define MODULE_C_FRAMEEXIT()                                     \
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
+
+/* ---------------- FOR C INTERFACE FUNCTIONS END ---------------- */
+
+void module_fn(lua_State *L, int depth) {
     MODULE_C_FRAMEENTER();
 
-    MODULE_SETLINE();
-    luaL_error(L, "Error from an untracked C function, which has no trace in Lua callstack!");
-
-    MODULE_C_FRAMEEXIT();
-}
-
-void module_fn(lua_State *L, pt_fnstack_t *fnstack, int depth) {
-    MODULE_C_FRAMEENTER();
+    lua_pushvalue(L, 1);
 
     if(depth == 0) 
         lua_pushinteger(L, depth);
@@ -59,35 +52,32 @@ void module_fn(lua_State *L, pt_fnstack_t *fnstack, int depth) {
 
     /* Set line number to current active frame in the Pallene callstack and
        call the function which is already in the Lua stack. */
-    MODULE_SETLINE();
+    MODULE_C_SETLINE();
     lua_call(L, 1, 0);
 
     MODULE_C_FRAMEEXIT();
 }
 
 int module_fn_lua(lua_State *L) {
+    int top = lua_gettop(L);
     MODULE_LUA_FRAMEENTER(module_fn_lua);
 
     /* Look at the macro definitions. */
-    if(luai_unlikely(_base < 2)) 
+    if(luai_unlikely(top < 2)) 
         luaL_error(L, "Expected atleast 2 parameters");
 
     /* ---- `lua_fn` ---- */
-    lua_pushvalue(L, 1);
-    if(luai_unlikely(lua_isfunction(L, -1) == 0)) 
+    if(luai_unlikely(lua_isfunction(L, 1) == 0)) 
         luaL_error(L, "Expected the first parameter to be a function");
 
-    lua_pushvalue(L, 2);
-    if(luai_unlikely(lua_isinteger(L, -1) == 0)) 
+    if(luai_unlikely(lua_isinteger(L, 2) == 0)) 
         luaL_error(L, "Expected the second parameter to be an integer");
 
-    int depth = lua_tointeger(L, -1);
-    lua_pop(L, 1);
+    int depth = lua_tointeger(L, 2);
 
     /* Dispatch. */
-    module_fn(L, fnstack, depth);
+    module_fn(L, depth);
 
-    MODULE_LUA_FRAMEEXIT();
     return 0;
 }
 

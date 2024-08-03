@@ -13,5 +13,4 @@ local function wrapper()
     module.module_fn_1(lua_callee_1)
 end
 
--- luacheck: globals pallene_tracer_debug_traceback
 xpcall(wrapper, pallene_tracer_debug_traceback)

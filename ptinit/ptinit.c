@@ -6,6 +6,7 @@
  */
 
 #define PT_IMPLEMENTATION
+#define PT_DEBUG
 #include <ptracer.h>
 
 int luaopen_ptinit(lua_State *L) {

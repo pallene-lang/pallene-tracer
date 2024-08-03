@@ -5,15 +5,12 @@
 
 local module = require "module"
 
--- luacheck: globals some_lua_fn
 function some_lua_fn()
-    module.singular_fn_1()
+    module.singular_fn()
 end
 
--- luacheck: globals wrapper
 function wrapper()
     some_lua_fn()
 end
 
--- luacheck: globals pallene_tracer_debug_traceback
 xpcall(wrapper, pallene_tracer_debug_traceback)

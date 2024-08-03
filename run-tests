@@ -28,8 +28,6 @@ if [ "$#" -eq 0 ]; then
         echo "GNU Parallel is not installed. Running the test suite in single threaded mode..."
         busted "${FLAGS[@]}"
     fi
-    # By default, also run the linter because the CI cares about that.
-    ./run-lint --quiet
 else
     # If we are running tests for a single spec file, then we do not use GNU Parallel. This way the
     # progress updates after each test, instead of all at once at end.
