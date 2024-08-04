@@ -35,6 +35,8 @@
 #else
 #define PT_API    __declspec(dllimport)
 #endif // PT_LIB
+#elif defined(PT_INLINE)
+#define PT_API    static
 #else
 #define PT_API    extern
 #endif // PT_BUILD_AS_DLL
