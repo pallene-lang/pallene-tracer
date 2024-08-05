@@ -9,4 +9,4 @@ CC := gcc
 .SILENT:
 
 all: 
-	$(CC) -fPIC -DPT_DEBUG $(CFLAGS) -shared module.c -o module.so
+	$(CC) -std=c99 -pedantic -Wextra -Wall -fPIC -DPT_DEBUG -shared module.c -o module.so

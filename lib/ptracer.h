@@ -67,9 +67,20 @@
 
 /* Not part of the API. */
 #ifdef PT_DEBUG
-#define _PALLENE_TRACER_FINALIZER(L, location)           lua_pushvalue(L, (location));    \
-    lua_toclose(L, -1);
+#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name)                  \           
+pt_fn_details_t var_name##_details =                                                  \ 
+    PALLENE_TRACER_FN_DETAILS(fn_name, filename);                                     \
+pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details)
+
+#define _PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name)                            \
+pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr)
+
+#define _PALLENE_TRACER_FINALIZER(L, location)       lua_pushvalue(L, (location));    \
+    lua_toclose(L, -1)
+
 #else
+#define _PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name) 
+#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name) 
 #define _PALLENE_TRACER_FINALIZER(L, location) 
 #endif // PT_DEBUG
 
@@ -108,16 +119,14 @@
    to the functon. */
 /* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
 #define PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr, location, var_name)    \
-pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr);                          \
+_PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name);                             \
 PALLENE_TRACER_FRAMEENTER(L, fnstack, &var_name);                               \
 _PALLENE_TRACER_FINALIZER(L, location)
 
 /* Use this macro the bypass some frameenter boilerplates for C interface frames. */
 /* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
 #define PALLENE_TRACER_C_FRAMEENTER(L, fnstack, fn_name, filename, var_name)    \
-pt_fn_details_t var_name##_details =                                            \ 
-    PALLENE_TRACER_FN_DETAILS(fn_name, filename);                               \
-pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details);               \
+_PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name);                   \
 PALLENE_TRACER_FRAMEENTER(L, fnstack, &var_name);
 
 /* -- GENERIC MACROS -- */
@@ -183,7 +192,7 @@ extern "C" {
 PT_API pt_fnstack_t *pallene_tracer_init(lua_State *L);
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-inline void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
+static inline void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
     /* Have we ran out of stack entries? If we do, stop pushing frames. */
     if(luai_unlikely(fnstack->count + 1 >= PALLENE_TRACER_MAX_CALLSTACK)) 
         return;
@@ -192,13 +201,13 @@ inline void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_fr
 }
 
 /* Sets line number to the topmost frame in the stack. */
-inline void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
+static inline void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
     if(luai_likely(fnstack->count != 0))
         fnstack->stack[fnstack->count - 1].line = line;
 }
 
 /* Removes the last frame from the stack. */
-inline void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
+static inline void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
     fnstack->count -= (fnstack->count > 0);
 }
 

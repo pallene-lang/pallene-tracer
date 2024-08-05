@@ -5,11 +5,14 @@
 
 CC := gcc
 
-.PHONY : all debug
+.PHONY : all debug clean
 .SILENT:
 
 all: 
-	$(CC) -fPIC $(CFLAGS) -shared fibonacci.c -o fibonacci.so
+	$(CC) -std=c99 -pedantic -Wall -Wextra -fPIC -O2 -shared fibonacci.c -o fibonacci.so
 
 debug: 
-	$(CC) -fPIC $(CFLAGS) -DPT_DEBUG -shared fibonacci.c -o fibonacci.so
+	$(CC) -std=c99 -pedantic -Wall -Wextra -fPIC -O2 -DPT_DEBUG -shared fibonacci.c -o fibonacci.so
+
+clean: 
+	rm -rf fibonacci.so
