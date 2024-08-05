@@ -21,22 +21,12 @@
 
 /* ---------------- MACRO DEFINITIONS ---------------- */
 
-#if defined(__GNUC__) || defined(__clang__) 
-#define PALLENE_TRACER_UNREACHABLE    __builtin_unreachable()
-#define pt_noret                      __attribute__((noreturn)) void
-#elif defined(_MSC_VER) // MSVC
-#define PALLENE_TRACER_UNREACHABLE    __assume(false)
-#define pt_noret                      __declspec(noreturn) void
-#endif
-
 #ifdef PT_BUILD_AS_DLL
 #ifdef PT_LIB
 #define PT_API    __declspec(dllexport)
 #else
 #define PT_API    __declspec(dllimport)
 #endif // PT_LIB
-#elif defined(PT_INLINE)
-#define PT_API    static
 #else
 #define PT_API    extern
 #endif // PT_BUILD_AS_DLL
@@ -193,13 +183,24 @@ extern "C" {
 PT_API pt_fnstack_t *pallene_tracer_init(lua_State *L);
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-PT_API void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame);
+inline void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
+    /* Have we ran out of stack entries? If we do, stop pushing frames. */
+    if(luai_unlikely(fnstack->count + 1 >= PALLENE_TRACER_MAX_CALLSTACK)) 
+        return;
+
+    fnstack->stack[fnstack->count++] = *frame;
+}
 
 /* Sets line number to the topmost frame in the stack. */
-PT_API void pallene_tracer_setline(pt_fnstack_t *fnstack, int line);
+inline void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
+    if(luai_likely(fnstack->count != 0))
+        fnstack->stack[fnstack->count - 1].line = line;
+}
 
 /* Removes the last frame from the stack. */
-PT_API void pallene_tracer_frameexit(pt_fnstack_t *fnstack);
+inline void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
+    fnstack->count -= (fnstack->count > 0);
+}
 
 /* Pallene Tracer explicit traceback function to show Pallene call-stack
    tracebacks. */
@@ -212,9 +213,6 @@ PT_API int  pallene_tracer_debug_traceback(lua_State *L);
 /* The finalizer function will be called from a to-be-closed value (since
    Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
 PT_API int pallene_tracer_finalizer(lua_State *L);
-
-/* Runtime error to invoke when Pallene call-stack overflowed. */
-pt_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
 
 #ifdef __cplusplus
 }
@@ -419,27 +417,6 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
 #endif // PT_DEBUG
 }
 
-/* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
-    /* Have we ran out of stack entries? */
-    if(luai_unlikely(fnstack->count + 1 >= PALLENE_TRACER_MAX_CALLSTACK)) {
-        pallene_tracer_runtime_callstack_overflow_error(L);
-    }
-
-    fnstack->stack[fnstack->count++] = *frame;
-}
-
-/* Sets line number to the topmost frame in the stack. */
-void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
-    if(luai_likely(fnstack->count != 0))
-        fnstack->stack[fnstack->count - 1].line = line;
-}
-
-/* Removes the last frame from the stack. */
-void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
-    fnstack->count -= (fnstack->count > 0);
-}
-
 /* Helper macro specific to this function only :). */
 #define DBG_PRINT() _pallene_tracer_dbg_print(buf, &ellipsis, &pframes, nframes)
 /* Pallene Tracer explicit traceback function to show Pallene call-stack
@@ -564,12 +541,6 @@ int pallene_tracer_finalizer(lua_State *L) {
     fnstack->count = idx;
 
     return 0;
-}
-
-/* Runtime error to invoke when Pallene call-stack overflowed. */
-pt_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L) {
-    luaL_error(L, "pallene callstack overflow");
-    PALLENE_TRACER_UNREACHABLE;
 }
 
 /* ---------------- DEFINITIONS END ---------------- */
