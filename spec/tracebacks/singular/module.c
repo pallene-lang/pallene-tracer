@@ -22,7 +22,7 @@
 
 #define MODULE_C_FRAMEENTER()                                    \
     MODULE_GET_FNSTACK;                                          \
-    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame)
 
 #define MODULE_C_SETLINE()                                       \
     PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
@@ -38,7 +38,7 @@
     MODULE_GET_FNSTACK;                                          \
     PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,             \
         lua_upvalueindex(2), _frame_lua);                        \
-    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame_c)
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame_c)
 
 /* ---------------- LUA INTERFACE FUNCTIONS END ---------------- */
 

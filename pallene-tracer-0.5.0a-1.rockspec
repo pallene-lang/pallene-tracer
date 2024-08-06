@@ -23,7 +23,7 @@ external_dependencies = {
 build = {
     type = "builtin",
     modules = {
-        ptinit = "ptinit/ptinit.c", 
+        ptinit = "src/ptinit/main.c", 
     },
     install = {
         bin = {
