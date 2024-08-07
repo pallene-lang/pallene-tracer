@@ -31,7 +31,7 @@
 
 #define MODULE_C_FRAMEENTER()                                    \
     MODULE_GET_FNSTACK;                                          \
-    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame)
 
 #define MODULE_C_SETLINE()                                       \
     PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)

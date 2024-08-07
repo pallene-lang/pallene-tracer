@@ -18,7 +18,7 @@ ptracer_header:
 	cp lib/ptracer.h $(INSTALL_INCDIR)
 
 libptracer:
-	$(CC) -fPIC -DPT_DEBUG -O2 -shared src/ptracer.c -o libptracer.so
+	$(CC) -fPIC -DPT_DEBUG -O2 -shared src/ptracer/main.c -o libptracer.so
 
 uninstall: 
 	rm -rf $(INSTALL_INCDIR)/ptracer.h

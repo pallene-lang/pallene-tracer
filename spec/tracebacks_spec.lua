@@ -59,36 +59,6 @@ Stack traceback:
 ]])
 end)
 
-it("Pallene Stack Overflow", function()
-    assert_example("psoverflow", [[
-Runtime error: main.lua:9: pallene callstack overflow
-Stack traceback:
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-
-    ... (Skipped 99983 frames) ...
-
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:53: in function 'trigger_pallene_stack_overflow'
-    module.c:65: in function 'module_fn'
-    main.lua:9: in function 'wrapper'
-    C: in function 'xpcall'
-    main.lua:12: in <main>
-    C: in function '<?>'
-]])
-end)
-
 it("Depth recursion", function()
     assert_example("depth_recursion", [[
 Runtime error: main.lua:10: Depth reached 0!

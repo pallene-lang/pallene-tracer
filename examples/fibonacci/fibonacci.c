@@ -29,7 +29,7 @@
 
 #define FIB_C_FRAMEENTER()                              \
     FIB_GET_FNSTACK;                                    \
-    PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, _frame)
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame)
 
 #define FIB_C_SETLINE()                                 \
     PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)

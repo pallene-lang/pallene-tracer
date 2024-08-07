@@ -21,14 +21,6 @@
 
 /* ---------------- MACRO DEFINITIONS ---------------- */
 
-#if defined(__GNUC__) || defined(__clang__) 
-#define PALLENE_TRACER_UNREACHABLE    __builtin_unreachable()
-#define pt_noret                      __attribute__((noreturn)) void
-#elif defined(_MSC_VER) // MSVC
-#define PALLENE_TRACER_UNREACHABLE    __assume(false)
-#define pt_noret                      __declspec(noreturn) void
-#endif
-
 #ifdef PT_BUILD_AS_DLL
 #ifdef PT_LIB
 #define PT_API    __declspec(dllexport)
@@ -63,21 +55,32 @@
 /* API wrapper macros. Using these wrappers instead is raw functions
  * are highly recommended. */
 #ifdef PT_DEBUG
-#define PALLENE_TRACER_FRAMEENTER(L, fnstack, frame)    pallene_tracer_frameenter(L, fnstack, frame)
+#define PALLENE_TRACER_FRAMEENTER(fnstack, frame)       pallene_tracer_frameenter(fnstack, frame)
 #define PALLENE_TRACER_SETLINE(fnstack, line)           pallene_tracer_setline(fnstack, line)
 #define PALLENE_TRACER_FRAMEEXIT(fnstack)               pallene_tracer_frameexit(fnstack)
 
 #else 
-#define PALLENE_TRACER_FRAMEENTER(L, fnstack, frame) 
+#define PALLENE_TRACER_FRAMEENTER(fnstack, frame) 
 #define PALLENE_TRACER_SETLINE(fnstack, line) 
 #define PALLENE_TRACER_FRAMEEXIT(fnstack) 
 #endif // PT_DEBUG
 
 /* Not part of the API. */
 #ifdef PT_DEBUG
-#define _PALLENE_TRACER_FINALIZER(L, location)           lua_pushvalue(L, (location));    \
-    lua_toclose(L, -1);
+#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name)                  \           
+pt_fn_details_t var_name##_details =                                                  \ 
+    PALLENE_TRACER_FN_DETAILS(fn_name, filename);                                     \
+pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details)
+
+#define _PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name)                            \
+pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr)
+
+#define _PALLENE_TRACER_FINALIZER(L, location)       lua_pushvalue(L, (location));    \
+    lua_toclose(L, -1)
+
 #else
+#define _PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name) 
+#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name) 
 #define _PALLENE_TRACER_FINALIZER(L, location) 
 #endif // PT_DEBUG
 
@@ -116,23 +119,21 @@
    to the functon. */
 /* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
 #define PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr, location, var_name)    \
-pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr);                          \
-PALLENE_TRACER_FRAMEENTER(L, fnstack, &var_name);                               \
+_PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name);                             \
+PALLENE_TRACER_FRAMEENTER(fnstack, &var_name);                                  \
 _PALLENE_TRACER_FINALIZER(L, location)
 
 /* Use this macro the bypass some frameenter boilerplates for C interface frames. */
 /* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
-#define PALLENE_TRACER_C_FRAMEENTER(L, fnstack, fn_name, filename, var_name)    \
-pt_fn_details_t var_name##_details =                                            \ 
-    PALLENE_TRACER_FN_DETAILS(fn_name, filename);                               \
-pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details);               \
-PALLENE_TRACER_FRAMEENTER(L, fnstack, &var_name);
+#define PALLENE_TRACER_C_FRAMEENTER(fnstack, fn_name, filename, var_name)       \
+_PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name);                   \
+PALLENE_TRACER_FRAMEENTER(fnstack, &var_name);
 
 /* -- GENERIC MACROS -- */
 
 /* FOR NORMAL C MODULES THESE MACROS SHOULD SUFFICE.  */
-#define PALLENE_TRACER_GENERIC_C_FRAMEENTER(L, fnstack, var_name)               \
-    PALLENE_TRACER_C_FRAMEENTER(L, fnstack, __func__, __FILE__, var_name)
+#define PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, var_name)               \
+    PALLENE_TRACER_C_FRAMEENTER(fnstack, __func__, __FILE__, var_name)
 
 #define PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)                               \
     PALLENE_TRACER_SETLINE(fnstack, __LINE__ + 1)
@@ -191,13 +192,24 @@ extern "C" {
 PT_API pt_fnstack_t *pallene_tracer_init(lua_State *L);
 
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-PT_API void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame);
+static inline void pallene_tracer_frameenter(pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
+    /* Have we ran out of stack entries? If we do, stop pushing frames. */
+    if(luai_likely(fnstack->count < PALLENE_TRACER_MAX_CALLSTACK)) 
+        fnstack->stack[fnstack->count] = *frame;
+
+    fnstack->count++;
+}
 
 /* Sets line number to the topmost frame in the stack. */
-PT_API void pallene_tracer_setline(pt_fnstack_t *fnstack, int line);
+static inline void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
+    if(luai_likely(fnstack->count != 0))
+        fnstack->stack[fnstack->count - 1].line = line;
+}
 
 /* Removes the last frame from the stack. */
-PT_API void pallene_tracer_frameexit(pt_fnstack_t *fnstack);
+static inline void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
+    fnstack->count -= (fnstack->count > 0);
+}
 
 /* Pallene Tracer explicit traceback function to show Pallene call-stack
    tracebacks. */
@@ -210,9 +222,6 @@ PT_API int  pallene_tracer_debug_traceback(lua_State *L);
 /* The finalizer function will be called from a to-be-closed value (since
    Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
 PT_API int pallene_tracer_finalizer(lua_State *L);
-
-/* Runtime error to invoke when Pallene call-stack overflowed. */
-pt_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
 
 #ifdef __cplusplus
 }
@@ -417,27 +426,6 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
 #endif // PT_DEBUG
 }
 
-/* Pushes a frame to the stack. The frame structure is self-managed for every function. */
-void pallene_tracer_frameenter(lua_State *L, pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
-    /* Have we ran out of stack entries? */
-    if(luai_unlikely(fnstack->count + 1 >= PALLENE_TRACER_MAX_CALLSTACK)) {
-        pallene_tracer_runtime_callstack_overflow_error(L);
-    }
-
-    fnstack->stack[fnstack->count++] = *frame;
-}
-
-/* Sets line number to the topmost frame in the stack. */
-void pallene_tracer_setline(pt_fnstack_t *fnstack, int line) {
-    if(luai_likely(fnstack->count != 0))
-        fnstack->stack[fnstack->count - 1].line = line;
-}
-
-/* Removes the last frame from the stack. */
-void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
-    fnstack->count -= (fnstack->count > 0);
-}
-
 /* Helper macro specific to this function only :). */
 #define DBG_PRINT() _pallene_tracer_dbg_print(buf, &ellipsis, &pframes, nframes)
 /* Pallene Tracer explicit traceback function to show Pallene call-stack
@@ -562,12 +550,6 @@ int pallene_tracer_finalizer(lua_State *L) {
     fnstack->count = idx;
 
     return 0;
-}
-
-/* Runtime error to invoke when Pallene call-stack overflowed. */
-pt_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L) {
-    luaL_error(L, "pallene callstack overflow");
-    PALLENE_TRACER_UNREACHABLE;
 }
 
 /* ---------------- DEFINITIONS END ---------------- */

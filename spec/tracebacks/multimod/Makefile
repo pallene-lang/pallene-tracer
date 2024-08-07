@@ -10,5 +10,5 @@ LIB_DIR := /usr/local/lib
 .SILENT:
 
 all: 
-	$(CC) -fPIC -DPT_DEBUG $(CFLAGS) -shared module_a.c -o module_a.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
-	$(CC) -fPIC -DPT_DEBUG $(CFLAGS) -shared module_b.c -o module_b.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
+	$(CC) -std=c99 -pedantic -Wall -Wextra -fPIC -DPT_DEBUG -shared module_a.c -o module_a.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
+	$(CC) -std=c99 -pedantic -Wall -Wextra -fPIC -DPT_DEBUG -shared module_b.c -o module_b.so -lptracer -Wl,-rpath=$(LIB_DIR) -L$(LIB_DIR)
