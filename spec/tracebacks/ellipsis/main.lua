@@ -5,8 +5,8 @@
 
 local module = require "module"
 
-function some_lua_fn()
-    module.singular_fn()
+function lua_fn()
+    module.module_fn(lua_fn)
 end
 
-some_lua_fn()
+lua_fn()

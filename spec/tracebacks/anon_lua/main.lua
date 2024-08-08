@@ -9,8 +9,4 @@ local function lua_callee_1()
     module.module_fn_2()
 end
 
-local function wrapper()
-    module.module_fn_1(lua_callee_1)
-end
-
-xpcall(wrapper, pallene_tracer_debug_traceback)
+module.module_fn_1(lua_callee_1)
