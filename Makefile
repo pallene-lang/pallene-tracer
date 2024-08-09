@@ -52,7 +52,7 @@ tests: library \
 
 all: library examples tests
 
-install: pt-run ptracer.h
+install:
 	$(INSTALL_EXEC) pt-run $(BINDIR)
 	$(INSTALL_DATA) ptracer.h $(INCDIR)
 
