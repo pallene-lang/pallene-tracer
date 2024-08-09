@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright (c) 2024, The Pallene Developers
  * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: MIT 
+ * SPDX-License-Identifier: MIT
  */
 
 /* Static use of the library would suffice. */
@@ -15,7 +15,7 @@
     pt_fnstack_t *fnstack = lua_touserdata(L,                    \
         lua_upvalueindex(1))
 #else
-#define MODULE_GET_FNSTACK 
+#define MODULE_GET_FNSTACK
 #endif // PT_DEBUG
 
 /* ---------------- FOR C INTERFACE FUNCTIONS ---------------- */

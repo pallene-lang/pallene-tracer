@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright (c) 2024, The Pallene Developers
  * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: MIT 
+ * SPDX-License-Identifier: MIT
  */
 
 #define PT_IMPLEMENTATION
@@ -29,7 +29,7 @@ int some_mod_fn_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(some_mod_fn_lua);
 
     /* Look at the macro definition. */
-    if(luai_unlikely(top < 1)) 
+    if(luai_unlikely(top < 1))
         luaL_error(L, "Expected atleast 1 argument");
 
     if(luai_unlikely(lua_isfunction(L, 1) == 0))

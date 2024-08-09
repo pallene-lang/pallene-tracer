@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright (c) 2024, The Pallene Developers
  * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: MIT 
+ * SPDX-License-Identifier: MIT
  */
 
 /* Static use of the library would suffice. */
@@ -15,7 +15,7 @@
     pt_fnstack_t *fnstack = lua_touserdata(L,                    \
         lua_upvalueindex(1))
 #else
-#define MODULE_GET_FNSTACK 
+#define MODULE_GET_FNSTACK
 #endif // PT_DEBUG
 
 /* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
@@ -46,7 +46,7 @@ void module_fn(lua_State *L, int depth) {
 
     lua_pushvalue(L, 1);
 
-    if(depth == 0) 
+    if(depth == 0)
         lua_pushinteger(L, depth);
     else lua_pushinteger(L, depth - 1);
 
@@ -63,14 +63,14 @@ int module_fn_lua(lua_State *L) {
     MODULE_LUA_FRAMEENTER(module_fn_lua);
 
     /* Look at the macro definitions. */
-    if(luai_unlikely(top < 2)) 
+    if(luai_unlikely(top < 2))
         luaL_error(L, "Expected atleast 2 parameters");
 
     /* ---- `lua_fn` ---- */
-    if(luai_unlikely(lua_isfunction(L, 1) == 0)) 
+    if(luai_unlikely(lua_isfunction(L, 1) == 0))
         luaL_error(L, "Expected the first parameter to be a function");
 
-    if(luai_unlikely(lua_isinteger(L, 2) == 0)) 
+    if(luai_unlikely(lua_isinteger(L, 2) == 0))
         luaL_error(L, "Expected the second parameter to be an integer");
 
     int depth = lua_tointeger(L, 2);
