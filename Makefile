@@ -20,7 +20,7 @@ INSTALL_EXEC= $(INSTALL) -m 0755
 INSTALL_DATA= $(INSTALL) -m 0644
 
 # C compilation flags
-CFLAGS   = -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra
+CFLAGS   = -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra -Wformat-security
 CPPFLAGS = -I$(LUA_INCDIR)
 LIBFLAG  = -fPIC -shared
 

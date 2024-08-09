@@ -149,7 +149,7 @@ static void pt_run_dbg_print(const char *buf, bool *ellipsis, int *pframes, int 
         || ((nframes - *pframes) <= PT_RUN_TRACEBACK_BOTTOM_THRESHOLD);
 
     if(luai_likely(should_print))
-        fprintf(stderr, buf);
+        fprintf(stderr, "%s", buf);
     else if(*ellipsis) {
         fprintf(stderr, "\n    ... (Skipped %d frames) ...\n\n",
             nframes - (PT_RUN_TRACEBACK_TOP_THRESHOLD
