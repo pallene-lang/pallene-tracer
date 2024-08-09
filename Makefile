@@ -21,7 +21,7 @@ INSTALL_DATA= $(INSTALL) -m 0644
 
 # C compilation flags
 CFLAGS   = -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra -Wformat-security
-CPPFLAGS = -I$(LUA_INCDIR)
+CPPFLAGS = -I$(LUA_INCDIR) -I.
 LIBFLAG  = -fPIC -shared
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
