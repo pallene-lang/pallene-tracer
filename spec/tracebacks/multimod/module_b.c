@@ -5,6 +5,9 @@
  * SPDX-License-Identifier: MIT 
  */
 
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+
 #include "module_include.h"
 
 void another_mod_fn(lua_State *L) {

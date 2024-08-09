@@ -1,8 +1,6 @@
 #ifndef MODULE_INCLUDE_HEADER
 #define MODULE_INCLUDE_HEADER
 
-#include <ptracer.h>
-
 /* Here goes user specific macros when Pallene Tracer debug mode is active. */
 #ifdef PT_DEBUG
 #define MODULE_GET_FNSTACK                                       \

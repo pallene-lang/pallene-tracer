@@ -15,11 +15,8 @@ INSTALL_BINDIR := $(INSTALL_DIR)/bin
 
 .PHONY: install ptracer_header pt-run libptracer uninstall clean
 
-install: ptracer_header pt-run libptracer
-	strip -s pt-run
+install: ptracer_header pt-run
 	cp pt-run $(INSTALL_BINDIR)
-	strip -s libptracer.so
-	cp libptracer.so $(INSTALL_LIBDIR)
 
 # We need the `ptracer.h` header to be installed first.
 ptracer_header: 
@@ -28,12 +25,9 @@ ptracer_header:
 pt-run: 
 	$(CC) $(CFLAGS) src/pt-run/main.c -o pt-run -llua -lm -Wl,-E -L$(LUA_DIR)/lib
 
-libptracer:
-	$(CC) -fPIC -shared $(CFLAGS) src/ptracer/main.c -o libptracer.so
-
 uninstall: 
 	rm -rf $(INSTALL_INCDIR)/ptracer.h
-	rm -rf $(INSTALL_LIBDIR)/libptracer.so
+	rm -rf $(INSTALL_BINDIR)/pt-run
 
 clean: 
 	rm -rf examples/*/*.so

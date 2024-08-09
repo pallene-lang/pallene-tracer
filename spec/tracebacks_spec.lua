@@ -43,9 +43,9 @@ it("Multi-module", function()
     assert_test("multimod", [[
 Runtime error: main.lua:10: Error from another module!
 Stack traceback:
-    module_b.c:16: in function 'another_mod_fn'
+    module_b.c:19: in function 'another_mod_fn'
     main.lua:10: in function 'some_lua_fn'
-    module_a.c:18: in function 'some_mod_fn'
+    module_a.c:20: in function 'some_mod_fn'
     main.lua:13: in <main>
 ]])
 end)
