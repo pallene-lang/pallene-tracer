@@ -7,7 +7,7 @@
 
 /* Static use of the library would suffice. */
 #define PT_IMPLEMENTATION
-#include <ptracer.h>
+#include "ptracer.h"
 
 /* Here goes user specific macros when Pallene Tracer debug mode is active. */
 #ifdef PT_DEBUG

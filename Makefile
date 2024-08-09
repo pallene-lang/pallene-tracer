@@ -21,7 +21,7 @@ INSTALL_DATA= $(INSTALL) -m 0644
 
 # C compilation flags
 CFLAGS   = -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra
-CPPFLAGS = -I$(LUA_INCDIR) -Iinclude
+CPPFLAGS = -I$(LUA_INCDIR)
 LIBFLAG  = -fPIC -shared
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
@@ -36,7 +36,7 @@ PTRUN_LDLIBS  = -llua -lm
 .PHONY: library examples tests all install uninstall clean
 
 library: \
-	src/pt-run
+	pt-run
 
 examples: library \
 	examples/fibonacci/fibonacci.so
@@ -50,30 +50,30 @@ tests: library \
         spec/tracebacks/multimod/module_b.so \
         spec/tracebacks/singular/module.so
 
-all: library examples specs
+all: library examples tests
 
-install: src/pt-run include/ptracer.h
-	$(INSTALL_EXEC) src/pt-run $(BINDIR)
-	$(INSTALL_DATA) include/ptracer.h $(INCDIR)
+install: pt-run ptracer.h
+	$(INSTALL_EXEC) pt-run $(BINDIR)
+	$(INSTALL_DATA) ptracer.h $(INCDIR)
 
 uninstall:
 	rm -rf $(INCDIR)/ptracer.h
 	rm -rf $(BINDIR)/pt-run
 
 clean:
-	rm -rf src/pt-run examples/*/*.so spec/tracebacks/*/*.so
+	rm -rf pt-run examples/*/*.so spec/tracebacks/*/*.so
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBFLAG) $< -o $@
 
-src/pt-run: src/pt-run.c include/ptracer.h
+pt-run: pt-run.c ptracer.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTRUN_LDFLAGS) $< -o $@ $(PTRUN_LDLIBS)
 
-examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           include/ptracer.h
-spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        include/ptracer.h
-spec/tracebacks/depth_recursion/module.so: spec/tracebacks/depth_recursion/module.c include/ptracer.h
-spec/tracebacks/dispatch/module.so:        spec/tracebacks/dispatch/module.c        include/ptracer.h
-spec/tracebacks/ellipsis/module.so:        spec/tracebacks/ellipsis/module.c        include/ptracer.h
-spec/tracebacks/multimod/module_a.so:      spec/tracebacks/multimod/module_a.c      include/ptracer.h
-spec/tracebacks/multimod/module_b.so:      spec/tracebacks/multimod/module_b.c      include/ptracer.h
-spec/tracebacks/singular/module.so:        spec/tracebacks/singular/module.c        include/ptracer.h
+examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           ptracer.h
+spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        ptracer.h
+spec/tracebacks/depth_recursion/module.so: spec/tracebacks/depth_recursion/module.c ptracer.h
+spec/tracebacks/dispatch/module.so:        spec/tracebacks/dispatch/module.c        ptracer.h
+spec/tracebacks/ellipsis/module.so:        spec/tracebacks/ellipsis/module.c        ptracer.h
+spec/tracebacks/multimod/module_a.so:      spec/tracebacks/multimod/module_a.c      ptracer.h
+spec/tracebacks/multimod/module_b.so:      spec/tracebacks/multimod/module_b.c      ptracer.h
+spec/tracebacks/singular/module.so:        spec/tracebacks/singular/module.c        ptracer.h

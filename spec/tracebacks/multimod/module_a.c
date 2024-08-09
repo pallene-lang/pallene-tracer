@@ -6,7 +6,7 @@
  */
 
 #define PT_IMPLEMENTATION
-#include <ptracer.h>
+#include "ptracer.h"
 
 #include "module_include.h"
 
