@@ -1,4 +1,5 @@
 *.o
 *.a
 *.so
-/pt-run
+
+pt-run

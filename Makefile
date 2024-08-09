@@ -1,37 +1,79 @@
 # Copyright (c) 2024, The Pallene Developers
 # Pallene Tracer is licensed under the MIT license.
 # Please refer to the LICENSE and AUTHORS files for details
-# SPDX-License-Identifier: MIT 
+# SPDX-License-Identifier: MIT
 
-CC     := gcc
-CFLAGS := -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra
+# Where to install our things
+PREFIX = /usr/local
+BINDIR = $(PREFIX)/bin
+INCDIR = $(PREFIX)/include
 
-LUA_DIR := /usr
+# Where to find Lua libraries
+LUA_PREFIX = /usr/local
+LUA_BINDIR = $(LUA_PREFIX)/bin
+LUA_INCDIR = $(LUA_PREFIX)/include
+LUA_LIBDIR = $(LUA_PREFIX)/lib
 
-INSTALL_DIR    := /usr/local
-INSTALL_INCDIR := $(INSTALL_DIR)/include
-INSTALL_LIBDIR := $(INSTALL_DIR)/lib
-INSTALL_BINDIR := $(INSTALL_DIR)/bin
+# How to install files
+INSTALL= install -p
+INSTALL_EXEC= $(INSTALL) -m 0755
+INSTALL_DATA= $(INSTALL) -m 0644
 
-.PHONY: install ptracer_header pt-run libptracer uninstall clean
+# C compilation flags
+CFLAGS   = -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra
+CPPFLAGS = -I$(LUA_INCDIR) -Iinclude
+LIBFLAG  = -fPIC -shared
 
-install: ptracer_header pt-run
-	cp pt-run $(INSTALL_BINDIR)
+# The -Wl,-E tells the linker to not throw away unused Lua API symbols.
+# We need them for Lua modules that are dynamically linked via require
+PTRUN_LDFLAGS = -L$(LUA_LIBDIR) -Wl,-E
+PTRUN_LDLIBS  = -llua -lm
 
-# We need the `ptracer.h` header to be installed first.
-ptracer_header: 
-	cp lib/ptracer.h $(INSTALL_INCDIR)
+# ===================
+# Compilation targets
+# ===================
 
-pt-run: 
-	$(CC) $(CFLAGS) src/pt-run/main.c -o pt-run -llua -lm -Wl,-E -L$(LUA_DIR)/lib
+.PHONY: library examples tests all install uninstall clean
 
-uninstall: 
-	rm -rf $(INSTALL_INCDIR)/ptracer.h
-	rm -rf $(INSTALL_BINDIR)/pt-run
+library: \
+	src/pt-run
 
-clean: 
-	rm -rf examples/*/*.so
-	rm -rf spec/tracebacks/*/*.so
-	rm -rf *.so
-	rm -rf pt-run
+examples: library \
+	examples/fibonacci/fibonacci.so
 
+tests: library \
+        spec/tracebacks/anon_lua/module.so \
+        spec/tracebacks/depth_recursion/module.so \
+        spec/tracebacks/dispatch/module.so \
+        spec/tracebacks/ellipsis/module.so \
+        spec/tracebacks/multimod/module_a.so \
+        spec/tracebacks/multimod/module_b.so \
+        spec/tracebacks/singular/module.so
+
+all: library examples specs
+
+install: src/pt-run include/ptracer.h
+	$(INSTALL_EXEC) src/pt-run $(BINDIR)
+	$(INSTALL_DATA) include/ptracer.h $(INCDIR)
+
+uninstall:
+	rm -rf $(INCDIR)/ptracer.h
+	rm -rf $(BINDIR)/pt-run
+
+clean:
+	rm -rf src/pt-run examples/*/*.so spec/tracebacks/*/*.so
+
+%.so: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBFLAG) $< -o $@
+
+src/pt-run: src/pt-run.c include/ptracer.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTRUN_LDFLAGS) $< -o $@ $(PTRUN_LDLIBS)
+
+examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           include/ptracer.h
+spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        include/ptracer.h
+spec/tracebacks/depth_recursion/module.so: spec/tracebacks/depth_recursion/module.c include/ptracer.h
+spec/tracebacks/dispatch/module.so:        spec/tracebacks/dispatch/module.c        include/ptracer.h
+spec/tracebacks/ellipsis/module.so:        spec/tracebacks/ellipsis/module.c        include/ptracer.h
+spec/tracebacks/multimod/module_a.so:      spec/tracebacks/multimod/module_a.c      include/ptracer.h
+spec/tracebacks/multimod/module_b.so:      spec/tracebacks/multimod/module_b.c      include/ptracer.h
+spec/tracebacks/singular/module.so:        spec/tracebacks/singular/module.c        include/ptracer.h

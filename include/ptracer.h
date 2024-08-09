@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright (c) 2024, The Pallene Developers
  * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: MIT 
+ * SPDX-License-Identifier: MIT
  */
 
 #ifndef PALLENE_TRACER_H
@@ -50,16 +50,16 @@
 #define PALLENE_TRACER_SETLINE(fnstack, line)           pallene_tracer_setline(fnstack, line)
 #define PALLENE_TRACER_FRAMEEXIT(fnstack)               pallene_tracer_frameexit(fnstack)
 
-#else 
-#define PALLENE_TRACER_FRAMEENTER(fnstack, frame) 
-#define PALLENE_TRACER_SETLINE(fnstack, line) 
-#define PALLENE_TRACER_FRAMEEXIT(fnstack) 
+#else
+#define PALLENE_TRACER_FRAMEENTER(fnstack, frame)
+#define PALLENE_TRACER_SETLINE(fnstack, line)
+#define PALLENE_TRACER_FRAMEEXIT(fnstack)
 #endif // PT_DEBUG
 
 /* Not part of the API. */
 #ifdef PT_DEBUG
-#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name)                  \           
-pt_fn_details_t var_name##_details =                                                  \ 
+#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name)                  \
+pt_fn_details_t var_name##_details =                                                  \
     PALLENE_TRACER_FN_DETAILS(fn_name, filename);                                     \
 pt_frame_t var_name = PALLENE_TRACER_C_FRAME(var_name##_details)
 
@@ -70,21 +70,21 @@ pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr)
     lua_toclose(L, -1)
 
 #else
-#define _PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name) 
-#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name) 
-#define _PALLENE_TRACER_FINALIZER(L, location) 
+#define _PALLENE_TRACER_PREPARE_LUA_FRAME(fnptr, var_name)
+#define _PALLENE_TRACER_PREPARE_C_FRAME(fn_name, filename, var_name)
+#define _PALLENE_TRACER_FINALIZER(L, location)
 #endif // PT_DEBUG
 
 /* ---- DATA-STRUCTURE HELPER MACROS ---- */
 
 /* Use this macro to fill in the details structure. */
-/* E.U.: 
+/* E.U.:
        pt_fn_details_t det = PALLENE_TRACER_FN_DETAILS("fn_name", "some_mod.c");
  */
 #define PALLENE_TRACER_FN_DETAILS(name, fname)    \
 { .fn_name = name, .filename = fname }
 
-/* Use this macro to fill in the frame structure as a 
+/* Use this macro to fill in the frame structure as a
    Lua interface frame. */
 /* E.U.: `pt_frame_t frame = PALLENE_TRACER_LUA_FRAME(lua_fn);` */
 #define PALLENE_TRACER_LUA_FRAME(fnptr)           \
@@ -103,9 +103,9 @@ pt_frame_t var_name = PALLENE_TRACER_LUA_FRAME(fnptr)
 /* ---- API HELPER MACROS ---- */
 
 /* Use this macro the bypass some frameenter boilerplates for Lua interface frames. */
-/* Note: `location` is where the finalizer object is in the stack, acquired from 
+/* Note: `location` is where the finalizer object is in the stack, acquired from
    `pallene_tracer_init()` function. If the object is passed to Lua C functions as an
-   upvalue, this should be `lua_upvalueindex(n)`. Otherwise, it should just be a number 
+   upvalue, this should be `lua_upvalueindex(n)`. Otherwise, it should just be a number
    denoting the parameter index where the object is found if passed as a plain parameter
    to the functon. */
 /* The `var_name` indicates the name of the `pt_frame_t` structure variable. */
@@ -185,7 +185,7 @@ PT_API pt_fnstack_t *pallene_tracer_init(lua_State *L);
 /* Pushes a frame to the stack. The frame structure is self-managed for every function. */
 static inline void pallene_tracer_frameenter(pt_fnstack_t *fnstack, pt_frame_t *restrict frame) {
     /* Have we ran out of stack entries? If we do, stop pushing frames. */
-    if(luai_likely(fnstack->count < PALLENE_TRACER_MAX_CALLSTACK)) 
+    if(luai_likely(fnstack->count < PALLENE_TRACER_MAX_CALLSTACK))
         fnstack->stack[fnstack->count] = *frame;
 
     fnstack->count++;
