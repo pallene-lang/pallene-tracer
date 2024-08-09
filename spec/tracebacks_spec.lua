@@ -6,11 +6,12 @@
 local util = require "misc.util"
 
 local function assert_test(example, expected_content)
-    local cdir = "spec/tracebacks/"..example.."/";
-    local ok, err = util.execute("cd "..cdir.."&& make")
+    local cdir = util.shell_quote("spec/tracebacks/"..example)
+    local ok, err = util.execute(string.format("cd %s && make", cdir))
     assert(ok, err)
 
-    local ok, _, output_content, err_content = util.outputs_of_execute("cd "..cdir.." && pt-run main.lua")
+    local ok, _, output_content, err_content =
+        util.outputs_of_execute(string.format("cd %s && pt-run main.lua", cdir))
     assert(not ok, output_content)
     assert.are.same(expected_content, err_content)
 end
@@ -82,7 +83,7 @@ Stack traceback:
 ]])
 end)
 
-it("Traceback Ellipsis", function() 
+it("Traceback Ellipsis", function()
     assert_test("ellipsis", [[
 Runtime error: C stack overflow
 Stack traceback:
