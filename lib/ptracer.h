@@ -43,15 +43,6 @@
 /* DO NOT CHANGE EVEN BY MISTAKE. */
 #define PALLENE_TRACER_MAX_CALLSTACK         100000
 
-/* Traceback ellipsis top threshold. How many frames should we print
-   first to trigger ellipsis? */
-#define PALLENE_TRACEBACK_TOP_THRESHOLD      10
-/* This should always be 2 fewer than top threshold, for symmetry.
-   Becuase we will always have 2 tail frames lingering around at
-   at the end which is not captured by '_countlevels'. Lua also 
-   do it like this. */
-#define PALLENE_TRACEBACK_BOTTOM_THRESHOLD    8
-
 /* API wrapper macros. Using these wrappers instead is raw functions
  * are highly recommended. */
 #ifdef PT_DEBUG
@@ -211,18 +202,6 @@ static inline void pallene_tracer_frameexit(pt_fnstack_t *fnstack) {
     fnstack->count -= (fnstack->count > 0);
 }
 
-/* Pallene Tracer explicit traceback function to show Pallene call-stack
-   tracebacks. */
-PT_API int  pallene_tracer_debug_traceback(lua_State *L);
-
-/* When we encounter a runtime error, `pallene_tracer_frameexit()` may not
-   get called. Therefore, the stack will get corrupted if the previous
-   call-frames are not removed. The finalizer function makes sure it
-   does not happen. Its guardian angel. */
-/* The finalizer function will be called from a to-be-closed value (since
-   Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
-PT_API int pallene_tracer_finalizer(lua_State *L);
-
 #ifdef __cplusplus
 }
 #endif // __cplusplus
@@ -237,120 +216,25 @@ PT_API int pallene_tracer_finalizer(lua_State *L);
 
 /* ---------------- PRIVATE ---------------- */
 
-/* Global table name deduction. Can we find a function name? */
-static bool _pallene_tracer_findfield(lua_State *L, int fn_idx, int level) {
-    if(level == 0 || !lua_istable(L, -1))
-        return false;
+/* When we encounter a runtime error, `pallene_tracer_frameexit()` may not
+   get called. Therefore, the stack will get corrupted if the previous
+   call-frames are not removed. The finalizer function makes sure it
+   does not happen. Its guardian angel. */
+/* The finalizer function will be called from a to-be-closed value (since
+   Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
+static int _pallene_tracer_finalizer(lua_State *L) {
+    /* Get the userdata. */
+    pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, lua_upvalueindex(1));
 
-    lua_pushnil(L);    /* Initial key. */
+    /* Remove all the frames until last Lua frame. */
+    int idx = fnstack->count - 1;
+    while(fnstack->stack[idx].type != PALLENE_TRACER_FRAME_TYPE_LUA)
+        idx--;
 
-    while(lua_next(L, -2)) {
-        /* We are only interested in String keys. */
-        if(lua_type(L, -2) == LUA_TSTRING) {
-            /* Avoid "_G" recursion in global table. The global table is also part of
-               global table :). */
-            if(!strcmp(lua_tostring(L, -2), "_G")) {
-                /* Remove value and continue. */
-                lua_pop(L, 1);
-                continue;
-            }
+    /* Remove the Lua frame as well. */
+    fnstack->count = idx;
 
-            /* Is it the function we are looking for? */
-            if(lua_rawequal(L, fn_idx, -1)) {
-                /* Remove value and keep name. */
-                lua_pop(L, 1);
-                return true;
-            }
-            /* If not go one level deeper and get the value recursively. */
-            else if(_pallene_tracer_findfield(L, fn_idx, level - 1)) {
-                /* Remove the table but keep name. */
-                lua_remove(L, -2);
-
-                /* Add a "." in between. */
-                lua_pushliteral(L, ".");
-                lua_insert(L, -2);
-
-                /* Concatenate last 3 values, resulting "table.some_func". */
-                lua_concat(L, 3);
-
-                return true;
-            }
-        }
-
-        /* Pop the value. */
-        lua_pop(L, 1);
-    }
-
-    return false;
-}
-
-/* Pushes a function name if found in the global table and returns true.
-   Returns false otherwise. */
-/* Expects the function to be pushed in the stack. */
-static bool _pallene_tracer_pgf_name(lua_State *L) {
-    int top = lua_gettop(L);
-
-    /* Start from the global table. */
-    lua_pushglobaltable(L);
-
-    if(_pallene_tracer_findfield(L, top, 2)) {
-        lua_remove(L, -2);
-        return true;
-    }
-
-    lua_pop(L, 1);
-    return false;
-}
-
-/* Returns the maximum number of levels in Lua stack. */
-static int _pallene_tracer_countlevels(lua_State *L) {
-    lua_Debug ar;
-    int li = 1, le = 1;
-
-    /* Find an upper bound */
-    while (lua_getstack(L, le, &ar)) {
-        li = le, le *= 2;
-    }
-
-    /* Do a binary search */
-    while (li < le) {
-        int m = (li + le) / 2;
-
-        if (lua_getstack(L, m, &ar)) li = m + 1;
-        else le = m;
-    }
-
-    return le - 1;
-}
-
-/* Counts the number of white and black frames in the Pallene call stack. */
-static void _pallene_tracer_countframes(pt_fnstack_t *fnstack, int *mwhite, int *mblack) {
-    *mwhite = *mblack = 0;
-
-    for(int i = 0; i < fnstack->count; i++) {
-        *mwhite += (fnstack->stack[i].type == PALLENE_TRACER_FRAME_TYPE_C);
-        *mblack += (fnstack->stack[i].type == PALLENE_TRACER_FRAME_TYPE_LUA);
-    }
-}
-
-/* Responsible for printing and controlling some of the traceback fn parameters. */
-static void _pallene_tracer_dbg_print(const char *buf, bool *ellipsis, int *pframes, int nframes) {
-    /* We have printed the frame, even tho it might not be visible ;). */
-    (*pframes)++;
-
-    /* Should we print? Are we at any point in top or bottom printing threshold? */
-    bool should_print = (*pframes <= PALLENE_TRACEBACK_TOP_THRESHOLD)
-        || ((nframes - *pframes) <= PALLENE_TRACEBACK_BOTTOM_THRESHOLD);
-
-    if(luai_likely(should_print))
-        fprintf(stderr, buf);
-    else if(*ellipsis) {
-        fprintf(stderr, "\n    ... (Skipped %d frames) ...\n\n",
-            nframes - (PALLENE_TRACEBACK_TOP_THRESHOLD
-            + PALLENE_TRACEBACK_BOTTOM_THRESHOLD));
-
-        *ellipsis = false;
-    }
+    return 0;
 }
 
 /* Frees the heap-allocated resources. */
@@ -398,7 +282,7 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
         lua_pushvalue(L, -3);
 
         /* Our finalizer fn. */
-        lua_pushcclosure(L, pallene_tracer_finalizer, 1);
+        lua_pushcclosure(L, _pallene_tracer_finalizer, 1);
         lua_setfield(L, -2, "__close");
         lua_setmetatable(L, -2);
 
@@ -407,9 +291,6 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
 
         /* Set stack function stack container to registry .*/
         lua_setfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_CONTAINER_ENTRY);
-
-        /* The debug traceback fn. */
-        lua_register(L, "pallene_tracer_debug_traceback", pallene_tracer_debug_traceback);
 
         /* Push the finalizer object in the stack. */
         lua_getfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_FINALIZER_ENTRY);
@@ -424,132 +305,6 @@ pt_fnstack_t *pallene_tracer_init(lua_State *L) {
     lua_pushnil(L);
     return NULL;
 #endif // PT_DEBUG
-}
-
-/* Helper macro specific to this function only :). */
-#define DBG_PRINT() _pallene_tracer_dbg_print(buf, &ellipsis, &pframes, nframes)
-/* Pallene Tracer explicit traceback function to show Pallene call-stack
-   tracebacks. */
-int pallene_tracer_debug_traceback(lua_State *L) {
-    lua_getfield(L, LUA_REGISTRYINDEX, PALLENE_TRACER_CONTAINER_ENTRY);
-    pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, -1);
-    pt_frame_t *stack = fnstack->stack;
-    /* The point where we are in the Pallene stack. */
-    int index = fnstack->count - 1;
-    lua_pop(L, 1);
-
-    /* Max number of white and black frames. */
-    int mwhite, mblack;
-    _pallene_tracer_countframes(fnstack, &mwhite, &mblack);
-    /* Max levels of Lua stack. */
-    int mlevel = _pallene_tracer_countlevels(L);
-
-    /* Total frames we are going to print. */
-    /* Black frames are used for switching and we will start from
-       Lua stack level 1. */
-    int nframes = mlevel + mwhite - mblack - 1;
-    /* Amount of frames printed. */
-    int pframes = 0;
-    /* Should we print ellipsis? */
-    bool ellipsis = nframes > (PALLENE_TRACEBACK_TOP_THRESHOLD
-        + PALLENE_TRACEBACK_BOTTOM_THRESHOLD);
-
-    /* Buffer to store for a single frame line to be printed. */
-    int _BUFSIZ = 1023;
-    char buf[_BUFSIZ + 1];
-
-    const char *message = lua_tostring(L, 1);
-    fprintf(stderr, "Runtime error: %s\nStack traceback:\n", message);
-
-    lua_Debug ar;
-    int top = lua_gettop(L);
-    int level = 1;
-
-    while(lua_getstack(L, level++, &ar)) {
-        /* Get information regarding the frame: name, source, linenumbers etc. */
-        lua_getinfo(L, "Slnf", &ar);
-
-        /* If the frame is a C frame. */
-        if(lua_iscfunction(L, -1)) {
-            if(index >= 0) {
-                /* Check whether this frame is tracked (C interface frames). */
-                int check = index;
-                while(stack[check].type != PALLENE_TRACER_FRAME_TYPE_LUA)
-                    check--;
-
-                /* If the frame matches, we switch to printing Pallene frames. */
-                if(lua_tocfunction(L, -1) == stack[check].shared.c_fnptr) {
-                    /* Now print all the frames in Pallene stack. */
-                    for(; index > check; index--) {
-                        snprintf(buf, _BUFSIZ, "    %s:%d: in function '%s'\n",
-                            stack[index].shared.details->filename,
-                            stack[index].line, stack[index].shared.details->fn_name);
-                        DBG_PRINT();
-                    }
-
-                    /* 'check' idx is guaranteed to be a Lua interface frame.
-                       Which is basically our 'stack' index at this point. So,
-                       we simply ignore the Lua interface frame. */
-                    index--;
-
-                    /* We are done. */
-                    lua_settop(L, top);
-                    continue;
-                }
-            }
-
-            /* Then it's an untracked C frame. */
-            if(_pallene_tracer_pgf_name(L))
-                lua_pushfstring(L, "%s", lua_tostring(L, -1));
-            else lua_pushliteral(L, "<?>");
-
-            snprintf(buf, _BUFSIZ, "    C: in function '%s'\n", lua_tostring(L, -1));
-            DBG_PRINT();
-        } else {
-            /* It's a Lua frame. */
-
-            /* Do we have a name? */
-            if(*ar.namewhat != '\0')
-                lua_pushfstring(L, "function '%s'", ar.name);
-            /* Is it the main chunk? */
-            else if(*ar.what == 'm')
-                lua_pushliteral(L, "<main>");
-            /* Can we deduce the name from the global table? */
-            else if(_pallene_tracer_pgf_name(L))
-                lua_pushfstring(L, "function '%s'", lua_tostring(L, -1));
-            else lua_pushliteral(L, "function '<?>'");
-
-            snprintf(buf, _BUFSIZ, "    %s:%d: in %s\n", ar.short_src,
-                ar.currentline, lua_tostring(L, -1));
-            DBG_PRINT();
-        }
-
-        lua_settop(L, top);
-    }
-
-    return 0;
-}
-#undef DBG_PRINT
-
-/* When we encounter a runtime error, `pallene_tracer_frameexit()` may not
-   get called. Therefore, the stack will get corrupted if the previous
-   call-frames are not removed. The finalizer function makes sure it
-   does not happen. Its guardian angel. */
-/* The finalizer function will be called from a to-be-closed value (since
-   Lua 5.4). If you are using Lua version prior 5.4, you are outta luck. */
-int pallene_tracer_finalizer(lua_State *L) {
-    /* Get the userdata. */
-    pt_fnstack_t *fnstack = (pt_fnstack_t *) lua_touserdata(L, lua_upvalueindex(1));
-
-    /* Remove all the frames until last Lua frame. */
-    int idx = fnstack->count - 1;
-    while(fnstack->stack[idx].type != PALLENE_TRACER_FRAME_TYPE_LUA)
-        idx--;
-
-    /* Remove the Lua frame as well. */
-    fnstack->count = idx;
-
-    return 0;
 }
 
 /* ---------------- DEFINITIONS END ---------------- */

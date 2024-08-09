@@ -13,10 +13,4 @@ function lua_fn(depth)
     module.module_fn(lua_fn, depth - 1)
 end
 
--- Should be local.
--- Making it global so that it is visible in the traceback.
-function wrapper()
-    lua_fn(10)
-end
-
-xpcall(wrapper, pallene_tracer_debug_traceback)
+lua_fn(10)

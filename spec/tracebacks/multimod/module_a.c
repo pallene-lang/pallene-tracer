@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: MIT 
  */
 
-/* This time we would be doing dynamic linking. */
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+
 #include "module_include.h"
 
 void some_mod_fn(lua_State *L) {
