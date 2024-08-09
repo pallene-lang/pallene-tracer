@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local util = require "misc.util"
+local util = require "spec.util"
 
 local function assert_test(example, expected_content)
     local cdir = util.shell_quote("spec/tracebacks/"..example)
