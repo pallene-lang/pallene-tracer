@@ -2,7 +2,7 @@
  * Copyright (c) 2024, The Pallene Developers
  * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: MIT 
+ * SPDX-License-Identifier: MIT
  */
 
 #include <stdio.h>
@@ -13,7 +13,7 @@
 #include <lualib.h>
 
 #define PT_IMPLEMENTATION
-#include <ptracer.h>
+#include "ptracer.h"
 
 /* Traceback ellipsis top threshold. How many frames should we print
    first to trigger ellipsis? */
@@ -23,7 +23,7 @@
 
 /* This should always be 2 fewer than top threshold, for symmetry.
    Becuase we will always have 2 tail frames lingering around at
-   at the end which is not captured by '_countlevels'. Lua also 
+   at the end which is not captured by '_countlevels'. Lua also
    do it like this. */
 #ifndef PT_RUN_TRACEBACK_BOTTOM_THRESHOLD
 #define PT_RUN_TRACEBACK_BOTTOM_THRESHOLD        8
@@ -38,7 +38,7 @@ static void pt_run_help() {
     printf("Pallene Tracer runner for call-stack backtrace\n\n");
     printf("Arguments:\n"
            "    lua_script                Lua file to debug\n"
-           "    args ...                  Arguments passed to Lua script\n\n"); 
+           "    args ...                  Arguments passed to Lua script\n\n");
     printf("Options:\n"
            "    -h, --help                Show this help message and exit\n");
 }
@@ -149,7 +149,7 @@ static void pt_run_dbg_print(const char *buf, bool *ellipsis, int *pframes, int 
         || ((nframes - *pframes) <= PT_RUN_TRACEBACK_BOTTOM_THRESHOLD);
 
     if(luai_likely(should_print))
-        fprintf(stderr, buf);
+        fprintf(stderr, "%s", buf);
     else if(*ellipsis) {
         fprintf(stderr, "\n    ... (Skipped %d frames) ...\n\n",
             nframes - (PT_RUN_TRACEBACK_TOP_THRESHOLD
@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
     if(!strncmp(argv[1], "-", 1)) {
         char *match = argv[1] + 1;
 
-        if(!strcmp(match, "h") || !strcmp(match, "-help")) 
+        if(!strcmp(match, "h") || !strcmp(match, "-help"))
             pt_run_help();
         else {
             pt_run_usage(stderr);
@@ -314,17 +314,17 @@ int main(int argc, char **argv) {
     }
 
     /* Push arguments to Lua stack. */
-    for(int i = 2; i < argc; i++) 
+    for(int i = 2; i < argc; i++)
         lua_pushstring(L, argv[i]);
 
     /* Moment of truth. */
     status = lua_pcall(L, argc - 2, LUA_MULTRET, traceback_fn);
-    if(status != LUA_OK) 
+    if(status != LUA_OK)
         res = EXIT_FAILURE;
 
-finalize: 
+finalize:
     /* Cleanup. */
     lua_close(L);
-out: 
+out:
     return res;
 }
