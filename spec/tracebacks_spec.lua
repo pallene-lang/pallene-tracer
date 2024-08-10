@@ -9,9 +9,8 @@ local function assert_test(example, expected_content)
     assert(util.execute("make --quiet tests"))
 
     local cdir  = util.shell_quote("spec/tracebacks/"..example)
-    local ptrun = util.shell_quote("../../../pt-run")
     local ok, _, output_content, err_content =
-        util.outputs_of_execute(string.format("cd %s && %s main.lua", cdir, ptrun))
+        util.outputs_of_execute(string.format("cd %s && pt-run main.lua", cdir))
     assert(not ok, output_content)
     assert.are.same(expected_content, err_content)
 end

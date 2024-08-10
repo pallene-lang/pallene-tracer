@@ -48,13 +48,19 @@ jobs:
                   make
                   sudo make install
 
-            - name: Build
-              run: |
-                  make all && sudo make install
+            - name: Build base Library
+              run: make library && sudo make install
+
+            - name: Build test scripts
+              run: make tests examples CPPFLAGS=''
 
             - name: Install Busted
               run: luarocks --local install busted
 
+            # To test that everthing works with ptracer.h and pt-run from
+            # /usr/local, we compile the tests without the "-I" preprocessor
+            # flag and we don't use "./run-tests". That script adds the current
+            # directory to the PATH, so it would use the local copy of pt-run.
             - name: Run Tests
               run: |
                   eval "$(luarocks path)"

@@ -6,7 +6,7 @@
  */
 
 #define PT_IMPLEMENTATION
-#include "ptracer.h"
+#include <ptracer.h>
 
 /* User specific macros when Pallene Tracer debug mode is enabled. */
 #ifdef PT_DEBUG
