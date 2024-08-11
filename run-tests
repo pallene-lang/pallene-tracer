@@ -6,4 +6,5 @@
 #   ./run-tests
 #   ./run-tests -k
 #   ./run-tests spec/traceback_spec.lua
+export PATH="$(pwd):$PATH"
 make tests && busted --verbose --no-keep-going "$@"
