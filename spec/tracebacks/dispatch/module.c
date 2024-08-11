@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright (c) 2024, The Pallene Developers
  * Pallene Tracer is licensed under the MIT license.
  * Please refer to the LICENSE and AUTHORS files for details
- * SPDX-License-Identifier: MIT 
+ * SPDX-License-Identifier: MIT
  */
 
 /* Static use of the library would suffice. */
@@ -15,7 +15,7 @@
     pt_fnstack_t *fnstack = lua_touserdata(L,                    \
         lua_upvalueindex(1))
 #else
-#define MODULE_GET_FNSTACK 
+#define MODULE_GET_FNSTACK
 #endif // PT_DEBUG
 
 /* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
@@ -71,10 +71,10 @@ int module_fn_1_lua(lua_State *L) {
 
     /* In Lua interface frames, we always have a finalizer object pushed to the stack by
        `FIB_LUA_FRAMEENTER()`. */
-    if(luai_unlikely(top < 1)) 
+    if(luai_unlikely(top < 1))
         luaL_error(L, "Expected atleast 1 parameters");
 
-    if(luai_unlikely(lua_isfunction(L, 1) == 0)) 
+    if(luai_unlikely(lua_isfunction(L, 1) == 0))
         luaL_error(L, "Expected parameter 1 to be a function");
 
     /* Now dispatch to an actual C function. */

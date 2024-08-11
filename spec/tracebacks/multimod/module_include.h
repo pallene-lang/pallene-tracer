@@ -7,7 +7,7 @@
     pt_fnstack_t *fnstack = lua_touserdata(L,                    \
         lua_upvalueindex(1))
 #else
-#define MODULE_GET_FNSTACK 
+#define MODULE_GET_FNSTACK
 #endif // PT_DEBUG
 
 /* ---------------- LUA INTERFACE FUNCTIONS ---------------- */
