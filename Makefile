@@ -53,7 +53,7 @@ tests: library \
 
 all: library examples tests
 
-install:
+install: library
 	$(INSTALL_EXEC) pt-lua $(BINDIR)
 	$(INSTALL_DATA) ptracer.h $(INCDIR)
 
