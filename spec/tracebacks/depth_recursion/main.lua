@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local module = require "module"
+local module = require "spec.tracebacks.depth_recursion.module"
 
 function lua_fn(depth)
     if depth == 0 then

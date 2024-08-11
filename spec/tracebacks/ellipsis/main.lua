@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local module = require "module"
+local module = require "spec.tracebacks.ellipsis.module"
 
 function lua_fn()
     module.module_fn(lua_fn)

@@ -41,7 +41,7 @@ int some_mod_fn_lua(lua_State *L) {
     return 0;
 }
 
-int luaopen_module_a(lua_State *L) {
+int luaopen_spec_tracebacks_multimod_module_a(lua_State *L) {
     /* Our stack. */
     pt_fnstack_t *fnstack = pallene_tracer_init(L);
 
