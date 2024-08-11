@@ -54,7 +54,7 @@ tests: library \
 all: library examples tests
 
 install:
-	$(INSTALL_EXEC) pt-run $(BINDIR)
+	$(INSTALL_EXEC) pt-lua $(BINDIR)
 	$(INSTALL_DATA) ptracer.h $(INCDIR)
 
 uninstall:
