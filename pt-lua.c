@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2024, The Pallene Developers
+ * Pallene Tracer is licensed under the MIT license.
+ * Please refer to the LICENSE and AUTHORS files for details
+ * SPDX-License-Identifier: MIT
+ */
+
+/* THIS FILE IS A DEEP-COPY OF `lua.c` (lua interpreter frontend) WITH OUR CUSTOM DEBUG TRACEBACK
+   FUNCTION BEING THE DEFAULT ONE. */
+
 #define lua_c
 
 /** lprefix.h **/
@@ -103,6 +113,8 @@ static void setsignal (int sig, void (*handler)(int)) {
 #endif                               /* } */
 
 
+/* ---------------- PALLENE TRACER CODE ---------------- */
+
 /* Global table name deduction. Can we find a function name? */
 static bool findfield(lua_State *L, int fn_idx, int level) {
   if(level == 0 || !lua_istable(L, -1))
@@ -203,31 +215,44 @@ static void countframes(pt_fnstack_t *fnstack, int *mwhite, int *mblack) {
 }
 
 
-/* Responsible for printing and controlling some of the traceback fn parameters. */
-static void makeitcount(lua_State *L, luaL_Buffer *buf, bool *ellipsis, int *pframes, int nframes) {
-  /* We have printed the frame, even tho it might not be visible ;). */
-  (*pframes)++;
+/* This function is called by `debugtraceback` function decides whether to print the stack frame info string
+   pushed onto the Lua stack. The function is also responsible for printing ellipsis (skipped frames). If we 
+   are skipping frames, the current frame pushed in stack is not printed. */
+/* Pops the frame string from the Lua stack. */
+/* pframes = Amount of printed frames; current count, nframes = Number of total frames to be printed. */
+static void render(lua_State *L, luaL_Buffer *buf, int pframes, int nframes) {
+  /* We don't have to account for multiple Lua states here, becuase the only way to use our custom traceback
+     is through `pt-lua` and in `pt-lua` we have single Lua state. Also, we are exiting right after printing
+     the stack-trace, so it's okay to use static at this point. */
+  /* Should we print ellipsis? */
+  static int ellipsis = -1;
+  if(ellipsis == -1) 
+    ellipsis = nframes > (PT_LUA_TRACEBACK_TOP_THRESHOLD
+      + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD);
 
   /* Should we print? Are we at any point in top or bottom printing threshold? */
-  bool should_print = (*pframes <= PT_LUA_TRACEBACK_TOP_THRESHOLD)
-    || ((nframes - *pframes) <= PT_LUA_TRACEBACK_BOTTOM_THRESHOLD);
+  bool should_print = (pframes <= PT_LUA_TRACEBACK_TOP_THRESHOLD)
+    || ((nframes - pframes) <= PT_LUA_TRACEBACK_BOTTOM_THRESHOLD);
 
-  if(luai_likely(should_print))
+  if(should_print)
     luaL_addvalue(buf);
-  else if(*ellipsis) {
-    lua_pushfstring(L, "\n\n    ... (Skipped %d frames) ...\n",
-      nframes - (PT_LUA_TRACEBACK_TOP_THRESHOLD
-      + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD));
-    luaL_addvalue(buf);
-    /* The frame string pushed onto the stack. */
+  else {
+    /* Have we escaped the threshold to skip frames? */
+    if(ellipsis) {
+        lua_pushfstring(L, "\n\n    ... (Skipped %d frames) ...\n",
+                nframes - (PT_LUA_TRACEBACK_TOP_THRESHOLD
+                    + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD));
+        luaL_addvalue(buf);
+
+        ellipsis = 0;
+    }
+
+    /* The frame string pushed onto the stack. We are not printing it, so just pop it out. */
     lua_pop(L, 1);
-
-    *ellipsis = false;
-  } else lua_pop(L, 1);  /* We not printing the frame. */
+  }
 }
 
 
-#define MAKEITCOUNT() makeitcount(L, &buf, &ellipsis, &pframes, nframes)
 /* Pallene Tracer explicit traceback function to show Pallene call-stack
    tracebacks. */
 int debugtraceback(lua_State *L, const char* msg) {
@@ -250,9 +275,6 @@ int debugtraceback(lua_State *L, const char* msg) {
   int nframes = mlevel + mwhite - mblack - 1;
   /* Amount of frames printed. */
   int pframes = 0;
-  /* Should we print ellipsis? */
-  bool ellipsis = nframes > (PT_LUA_TRACEBACK_TOP_THRESHOLD
-    + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD);
 
   luaL_Buffer buf;
   luaL_buffinit(L, &buf);
@@ -282,7 +304,8 @@ int debugtraceback(lua_State *L, const char* msg) {
             lua_pushfstring(L, "\n    %s:%d: in function '%s'",
               stack[index].shared.details->filename,
               stack[index].line, stack[index].shared.details->fn_name);
-            MAKEITCOUNT();
+            pframes++;  /* We are printing the frame regardless of frame visibility. */
+            render(L, &buf, pframes, nframes);
           }
 
           /* 'check' idx is guaranteed to be a Lua interface frame.
@@ -302,7 +325,8 @@ int debugtraceback(lua_State *L, const char* msg) {
       } else tname = "<?>";
 
       lua_pushfstring(L, "\n    C: in function '%s'", tname);
-      MAKEITCOUNT();
+      pframes++;
+      render(L, &buf, pframes, nframes);
     } else {
       /* It's a Lua frame. */
 
@@ -324,14 +348,16 @@ int debugtraceback(lua_State *L, const char* msg) {
 
       lua_pushfstring(L, "\n    %s:%d: in %s", ar.short_src,
         ar.currentline, tname);
-      MAKEITCOUNT();
+      pframes++;
+      render(L, &buf, pframes, nframes);
     }
   }
 
   luaL_pushresult(&buf);
   return 1;
 }
-#undef MAKEITCOUNT
+
+/* ---------------- PALLENE TRACER CODE END ---------------- */
 
 
 /*
@@ -419,7 +445,12 @@ static int msghandler (lua_State *L) {
       msg = lua_pushfstring(L, "(error object is a %s value)",
                                luaL_typename(L, 1));
   }
+  // luaL_traceback(L, L, msg, 1);  /* append a standard traceback */
+
+  /* -------- PALLENE TRACER CODE -------- */
   debugtraceback(L, msg);  /* Our custom debug traceback function */
+  /* -------- PALLENE TRACER CODE END -------- */
+
   return 1;  /* return the traceback */
 }
 
@@ -953,8 +984,12 @@ int main (int argc, char **argv) {
     return EXIT_FAILURE;
   }
   lua_gc(L, LUA_GCSTOP);  /* stop GC while building state */
+
+  /* -------- PALLENE TRACER CODE -------- */
   (void) pallene_tracer_init(L);  /* initialize pallene tracer */
   lua_pop(L, 1);  /* We do not need the finalizer object here */
+  /* -------- PALLENE TRACER CODE END -------- */
+
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */
   lua_pushinteger(L, argc);  /* 1st argument */
   lua_pushlightuserdata(L, argv); /* 2nd argument */
