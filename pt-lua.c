@@ -223,15 +223,6 @@ static void countframes(pt_fnstack_t *fnstack, int *mwhite, int *mblack) {
 /* Pops the frame string from the Lua stack. */
 /* pframes = Amount of printed frames; current count, nframes = Number of total frames to be printed. */
 static void render(lua_State *L, luaL_Buffer *buf, int pframes, int nframes) {
-  /* We don't have to account for multiple Lua states here, becuase the only way to use our custom traceback
-     is through `pt-lua` and in `pt-lua` we have single Lua state. Also, we are exiting right after printing
-     the stack-trace, so it's okay to use static at this point. */
-  /* Should we print ellipsis? */
-  static int ellipsis = -1;
-  if(ellipsis == -1) 
-    ellipsis = nframes > (PT_LUA_TRACEBACK_TOP_THRESHOLD
-      + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD);
-
   /* Should we print? Are we at any point in top or bottom printing threshold? */
   bool should_print = (pframes <= PT_LUA_TRACEBACK_TOP_THRESHOLD)
     || ((nframes - pframes) <= PT_LUA_TRACEBACK_BOTTOM_THRESHOLD);
@@ -240,13 +231,11 @@ static void render(lua_State *L, luaL_Buffer *buf, int pframes, int nframes) {
     luaL_addvalue(buf);
   else {
     /* Have we escaped the threshold to skip frames? */
-    if(ellipsis) {
+    if(pframes == PT_LUA_TRACEBACK_TOP_THRESHOLD + 1) {
         lua_pushfstring(L, "\n\n    ... (Skipped %d frames) ...\n",
                 nframes - (PT_LUA_TRACEBACK_TOP_THRESHOLD
                     + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD));
         luaL_addvalue(buf);
-
-        ellipsis = 0;
     }
 
     /* The frame string pushed onto the stack. We are not printing it, so just pop it out. */
