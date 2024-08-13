@@ -8,6 +8,8 @@
 /* THIS FILE IS A DEEP-COPY OF `lua.c` (lua interpreter frontend) WITH OUR CUSTOM DEBUG TRACEBACK
    FUNCTION BEING THE DEFAULT ONE. */
 
+/* Lua Authors: Roberto Ierusalimschy, Waldemar Celes, Luiz Henrique de Figueiredo */
+
 #define lua_c
 
 /** lprefix.h **/
