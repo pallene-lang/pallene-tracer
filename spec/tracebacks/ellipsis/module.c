@@ -72,7 +72,7 @@ int module_fn_lua(lua_State *L) {
     return 0;
 }
 
-int luaopen_module(lua_State *L) {
+int luaopen_spec_tracebacks_ellipsis_module(lua_State *L) {
     /* Our stack. */
     pt_fnstack_t *fnstack = pallene_tracer_init(L);
 

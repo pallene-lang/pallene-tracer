@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local module = require "module"
+local module = require "spec.tracebacks.anon_lua.module"
 
 local function lua_callee_1()
     module.module_fn_2()

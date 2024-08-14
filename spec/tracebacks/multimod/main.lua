@@ -3,8 +3,8 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
-local mod_a = require "module_a"
-local mod_b = require "module_b"
+local mod_a = require "spec.tracebacks.multimod.module_a"
+local mod_b = require "spec.tracebacks.multimod.module_b"
 
 function some_lua_fn()
     mod_b.another_mod_fn()

@@ -9,7 +9,7 @@ BINDIR = $(PREFIX)/bin
 INCDIR = $(PREFIX)/include
 
 # Where to find Lua libraries
-LUA_PREFIX = /usr/local
+LUA_PREFIX = /usr
 LUA_BINDIR = $(LUA_PREFIX)/bin
 LUA_INCDIR = $(LUA_PREFIX)/include
 LUA_LIBDIR = $(LUA_PREFIX)/lib
@@ -20,14 +20,15 @@ INSTALL_EXEC= $(INSTALL) -m 0755
 INSTALL_DATA= $(INSTALL) -m 0644
 
 # C compilation flags
-CFLAGS   = -DPT_DEBUG -O2 -std=c99 -pedantic -Wall -Wextra -Wformat-security
+CFLAGS   = -DPT_DEBUG -g -std=c99 -pedantic -Wall -Wextra -Wformat-security
+# Explicitly mention which Lua headers to capture
 CPPFLAGS = -I$(LUA_INCDIR) -I.
 LIBFLAG  = -fPIC -shared
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
 # We need them for Lua modules that are dynamically linked via require
-PTRUN_LDFLAGS = -L$(LUA_LIBDIR) -Wl,-E
-PTRUN_LDLIBS  = -llua -lm
+PTLUA_LDFLAGS = -L$(LUA_LIBDIR) -Wl,-E
+PTLUA_LDLIBS  = -llua -lm
 
 # ===================
 # Compilation targets
@@ -36,7 +37,7 @@ PTRUN_LDLIBS  = -llua -lm
 .PHONY: library examples tests all install uninstall clean
 
 library: \
-	pt-run
+	pt-lua
 
 examples: library \
 	examples/fibonacci/fibonacci.so
@@ -52,8 +53,8 @@ tests: library \
 
 all: library examples tests
 
-install:
-	$(INSTALL_EXEC) pt-run $(BINDIR)
+install: library
+	$(INSTALL_EXEC) pt-lua $(BINDIR)
 	$(INSTALL_DATA) ptracer.h $(INCDIR)
 
 uninstall:
@@ -61,13 +62,13 @@ uninstall:
 	rm -rf $(BINDIR)/pt-run
 
 clean:
-	rm -rf pt-run examples/*/*.so spec/tracebacks/*/*.so
+	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBFLAG) $< -o $@
 
-pt-run: pt-run.c ptracer.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTRUN_LDFLAGS) $< -o $@ $(PTRUN_LDLIBS)
+pt-lua: pt-lua.c ptracer.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
 
 examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           ptracer.h
 spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        ptracer.h
