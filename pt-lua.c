@@ -218,7 +218,7 @@ static void countframes(pt_fnstack_t *fnstack, int *mwhite, int *mblack) {
 
 
 /* This function is called by `debugtraceback` function decides whether to print the stack frame info string
-   pushed onto the Lua stack. The function is also responsible for printing ellipsis (skipped frames). If we 
+   pushed onto the Lua stack. The function is also responsible for printing ellipsis (skipped frames). If we
    are skipping frames, the current frame pushed in stack is not printed. */
 /* Pops the frame string from the Lua stack. */
 /* pframes = Amount of printed frames; current count, nframes = Number of total frames to be printed. */
@@ -230,16 +230,16 @@ static void render(lua_State *L, luaL_Buffer *buf, int pframes, int nframes) {
   if(should_print)
     luaL_addvalue(buf);
   else {
-    /* Have we escaped the threshold to skip frames? */
-    if(pframes == PT_LUA_TRACEBACK_TOP_THRESHOLD + 1) {
-        lua_pushfstring(L, "\n\n    ... (Skipped %d frames) ...\n",
-                nframes - (PT_LUA_TRACEBACK_TOP_THRESHOLD
-                    + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD));
-        luaL_addvalue(buf);
-    }
-
     /* The frame string pushed onto the stack. We are not printing it, so just pop it out. */
     lua_pop(L, 1);
+
+    /* Have we escaped the threshold to skip frames? */
+    if(pframes == PT_LUA_TRACEBACK_TOP_THRESHOLD + 1) {
+      lua_pushfstring(L, "\n\n    ... (Skipped %d frames) ...\n",
+        nframes - (PT_LUA_TRACEBACK_TOP_THRESHOLD
+        + PT_LUA_TRACEBACK_BOTTOM_THRESHOLD));
+      luaL_addvalue(buf);
+    }
   }
 }
 
@@ -290,6 +290,8 @@ int debugtraceback(lua_State *L, const char* msg) {
 
         /* If the frame matches, we switch to printing Pallene frames. */
         if(lua_tocfunction(L, -1) == stack[check].shared.c_fnptr) {
+          lua_pop(L, 1);  /* the function */
+
           /* Now print all the frames in Pallene stack. */
           for(; index > check; index--) {
             lua_pushfstring(L, "\n    %s:%d: in function '%s'",
@@ -315,6 +317,7 @@ int debugtraceback(lua_State *L, const char* msg) {
         lua_pop(L, 1);
       } else tname = "<?>";
 
+      lua_pop(L, 1);  /* the function */
       lua_pushfstring(L, "\n    C: in function '%s'", tname);
       pframes++;
       render(L, &buf, pframes, nframes);
@@ -337,6 +340,7 @@ int debugtraceback(lua_State *L, const char* msg) {
         lua_pop(L, 2);
       } else tname = "function '<?>'";
 
+      lua_pop(L, 1);  /* the function */
       lua_pushfstring(L, "\n    %s:%d: in %s", ar.short_src,
         ar.currentline, tname);
       pframes++;
