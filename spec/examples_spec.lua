@@ -18,8 +18,7 @@ local function assert_example(example, expected_content)
             cd %s
             make clean --quiet
             make debug --quiet
-            ../../pt-lua main.lua
-        ]], cdir))
+            ../../pt-lua main.lua ]], cdir))
     assert(ok, err)
     assert.are.same(expected_content, output_content)
 end
