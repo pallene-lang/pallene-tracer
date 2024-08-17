@@ -6,8 +6,6 @@
 local util = require "spec.util"
 
 local function assert_test(test, expected_content)
-    assert(util.execute("make --quiet tests"))
-
     local dir  = util.shell_quote("spec/tracebacks/"..test)
     local ok, _, output_content, err_content =
         util.outputs_of_execute("./pt-lua "..dir.."/main.lua")

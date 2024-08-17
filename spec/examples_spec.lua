@@ -8,7 +8,7 @@ local util = require "spec.util"
 local function assert_example(example, expected_content)
     local cdir  = util.shell_quote("examples/"..example)
     local ok, err, output_content, _ =
-        util.outputs_of_execute(string.format("cd %s && make --quiet&& ../../pt-lua main.lua", cdir))
+        util.outputs_of_execute(string.format("cd %s && make --quiet && ../../pt-lua main.lua", cdir))
     assert(ok, err)
     assert.are.same(expected_content, output_content)
 
