@@ -6,4 +6,4 @@
 #   ./run-tests
 #   ./run-tests -k
 #   ./run-tests spec/traceback_spec.lua
-make tests && busted --verbose --no-keep-going "$@"
+busted --verbose --no-keep-going "$@"

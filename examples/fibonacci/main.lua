@@ -3,7 +3,7 @@
 -- Please refer to the LICENSE and AUTHORS files for details
 -- SPDX-License-Identifier: MIT
 
+local N = tonumber(arg[1]) or 40
+
 local fibonacci = require "fibonacci"
-print(fibonacci.fib(40))
--- Uncomment this and trigger an error. You can debug using the 'pallene-debug' script.
--- print(fibonacci.fib(40.0))
+print(fibonacci.fib(N))
