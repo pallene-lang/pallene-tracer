@@ -29,7 +29,7 @@ This section provides a high-level overview on how Pallene Tracer works. For pre
  If used against environments in such convention: `Caller enviornment -> Callee environment`, it would denote situations when any function of caller environment is calling any function from callee environment such that we were to do something with this information. E.g. `Lua -> C` would mean situation when any Lua function is calling any C function. Here the sign should be read as **_to_**, e.g. Lua to C or C to C.
  - Untracked frames are referred to frames present in Lua call-stack but absent in call-stack. Any mention of "**Tracked frame**" is synonymous to Lua interface frame. In simple terms, any Lua C call-frame traced by Pallene Tracer is a Tracked frame. It is untracked otherwise.
 ### 1.1 How it works
-In **`pallene-tracer`**, we have a separate call-stack maintaining only C call-frames. The call-stack is used synchronously alongside with the Lua call-stack to generate a better stack-trace consisting of both Lua and C/Pallene frame traces.
+In **`pallene-tracer`**, there a separate call-stack maintaining only C call-frames. The call-stack is used synchronously alongside with the Lua call-stack to generate a better stack-trace consisting of both Lua and C/Pallene frame traces.
 
 To understand how it all fits, let's assume there is a Lua C module named `some_mod` with Pallene Tracer tracebacks enabled. A Lua `main.lua` script uses that module.
 
@@ -119,17 +119,218 @@ If the the C call-frame turns out to be tracked, immediate switch to Pallene Tra
 
 But if the frame turns out to be untracked, it is printed as a simple C function without any line number information and next frame is processed. But the function name is printed if found any by <a href="#">global name deduction</a>.
 
-When the traceback function is in action, it would seem like the a single pointer is hopping between frames in both call-stacks, denoted by the curvy lines in the middle of _Figure 2_. For every C frame we find in Lua call-stack, we do black frame probing. A blue dot can be perceived near the C call-frames of Lua call-stack denoting tracked C frames after successful probes for which we switch to Pallene Tracer call-stack.
+When the traceback function is in action, it would seem like the a single pointer is hopping between frames in both call-stacks, denoted by the curvy lines in the middle of _Figure 2_. For every C frame found in Lua call-stack, black frame probing is done. A blue dot can be perceived near the C call-frames of Lua call-stack denoting tracked C frames after successful probes and a switch to Pallene Tracer call-stack.
 ### 1.3 The Untracked Frames
 
 As aforementioned, upon encountering a C call-frame in Lua call stack, immediately probing is done to check whether the frame is "tracked". During the process, the nearest black frame is approached in Pallene Tracer call-stack to perform a match. If the match fails, the frame in question is "untracked".
 
 This happens when a Lua C function gets called which is not traced by Pallene Tracer at runtime, resulting the call only creating a call-frame only in Lua call-stack.
 
-> **Clarification:** For untracked C frames, the black frame we are comparing with in Pallene Tracer call-stack may represent some other C call-frame in Lua call-stack, which may get encountered in the future during backtrace. As illustrated in _Figure 1_, every black frame of call-stack is connected to a frame in Lua call-stack.
+> **Clarification:** For untracked C frames, the black frame getting compared with in call-stack may represent some other C call-frame in Lua call-stack, which may get encountered in the future during backtrace. As illustrated in _Figure 1_, every black frame of call-stack is connected to a frame in Lua call-stack.
+
 ## 2. Implementation
 
-TODO
+There are five components to Pallene Tracer making all the magic happen. Four functions in `ptracer.h` and a tool, `pt-lua`.
+
+### 2.1 The `ptracer.h` Header
+
+`ptracer.h` is a [STB style](https://github.com/nothings/stb) header which includes implementation code and can be used as a static library. Using the header without any macros would yield a normal header include.
+
+```C
+/* Function signatures but no implementation code */
+#include <ptracer.h>
+```
+
+Using the `PT_IMPLEMENTATION` macro prior to including the header would yield a header include with implementation code.
+
+```C
+/* Function signatures and implementation code */
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+```
+
+Which can be thought of as,
+
+```C
+#include <ptracer.h>
+
+/* Function definitions of ptracer.h header */
+```
+
+Therefore, it is highly recommended to keep the implementation code to different C translation and include the header normally in other C translations.
+<p align="right"><small><i>mymodule-ptracer.c</i></small></p>
+
+```C
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+
+/* Nothing else needs to be done here */
+```
+
+<p align="right"><small><i>mymodule-other.c</i></small></p>
+
+```C
+/* Now, normally including the header would suffice
+ * because we have the implementation code.
+ */
+
+#include <ptracer.h>
+
+/* ... other code ... */
+```
+
+But in case of single source modules, including the header with implementation is fine.
+<p align="right"><small><i>single-source-module.c</i></small></p>
+
+```C
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+
+/* ... module code ... */
+```
+
+> **Important Note:** The **`PT_DEBUG`** macro is used to toggle debug mode in Pallene Tracer. Debugging mode is **ON** if the macro is defined.
+
+### 2.2 The Implementation of API Functions
+
+The `ptracer.h` header includes four functions to be integrated to module codebase.
+
+> **Note:** Refer to the <b><a href="#api-functions">API</a></b> section for proper function details, signatures and their respective wrapper macros.
+
+#### I) `pallene_tracer_init`
+
+The Pallene Tracer call-stack is stored in Lua registry, accessible across Pallene Tracer compatible modules sharing same Lua state.
+
+The function checks if the call-stack can be found in the registry. If so, that indicates Pallene Tracer has been initialized beforehand by some other Pallene Tracer compatible module and the call-stack alongside with to-be-closed finalizer object (through Lua value-stack) is returned.
+
+If not so, the call-stack is created. Memory is allocated for two structures, userdatum for `pt_fnstack_t`, which acts like frame buffer container and heap allocation for `pt_frame_t` buffer. A `__gc` metamethod is prepared for `pt_frame_t` buffer deallocation. The stack is then stored in Lua registry. The to-be-closed finalizer object is then prepared, stored in registry and pushed onto the Lua value-stack.
+
+The function ensures return of Pallene Tracer call-stack and the finalizer object in Lua stack if debugging mode is enabled. Otherwise `NULL` and `nil` is returned respectively.
+
+This function should be called from module init functions.
+
+#### II) `pallene_tracer_frameenter`
+
+This inline function pushes a frame onto the Pallene Tracer call-stack. **If** call-stack frame limit is reached, no frames are pushed **but** the frame count is incremented regardless.
+
+#### III) `pallene_tracer_frameexit`
+
+This inline function removes the topmost frame from call-stack by decrementing the frame count, if frame count is greater than 0.
+
+#### IV) `pallene_tracer_setline`
+
+This inline function sets line number to the topmost frame in the call-stack, if any frame exists.
+
+### 2.3 Implementation Overview on Working Principle
+
+In implementation sense, Pallene Tracer works slightly differently. The noticeable difference would is the Black Frame is dissected into a White and a Black frame structure-wise.
+
+In the high-level overview, the black frames store not only frame information such as function name, line numbers but also stores something which can be matched with Lua call-stack C frames with in black frame probing. Generally, that "something" is **`lua_CFunction` pointer** and "match" is **pointer match**. Therefore, not only a `lua_CFunction` pointer but also frame-related information needs to be stored in Black frame structure, where the same frame-related information can be stored in the White frame structure. So, to reduce data-structure redundancy, in call-stack Black frame structure stores only the `lua_CFunction` pointer followed by a successive white frame storing the frame-related information for the Black frame.
+
+Alternatively, Lua C functions are normal C functions if not looked from Luas perspective. Thus, it would make sense to give them White frames and then Black frames to dictate Lua C function.
+
+To ensure traces in call-stack, a frame should be pushed by subsequently calling the **`frameenter`** function. Even though there is only a single `pallene_tracer_frameenter` function, macros are designed to abstract it away differentiating between Lua and C interface functions. Frames should be popped by calling the **`frameexit`** function respectively, which is also abstracted away by macros. Noteworthy to mention, Lua interface functions do not need to call `frameexit`.
+
+```C
+/* ... OTHER HEADER FILES ... */
+
+#define PT_IMPLEMENTATION
+#define <ptracer.h>
+
+static pt_fnstack_t *fnstack;
+
+/* ---- A GENERIC C FUNCTION ---- */
+int mymodule_some_c_func(lua_State *L) {
+    /* Only white frame. */
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, c_frame);
+
+    /* ... CODE ... */
+
+    PALLENE_TRACER_FRAMEEXIT(fnstack);
+    return something;
+}
+
+/* ---- A LUA C FUNCTION ---- */
+int mymodule_some_func(lua_State *L) {
+    /* The Black frame, holding the function pointer. */
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, (void *) mymodule_some_func, 
+        index_where_finalizer_object_is_in_value_stack, lua_frame);
+    /* Successive White frame holding frame information. */
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, c_frame);
+
+    /* Setting Line number to current call-frame prior to calling a function */
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack);
+    lua_pushinteger(L, mymodule_some_c_func(L));
+    return 1;
+}
+
+int luaopen_mymodule(lua_State *L) {
+    /* Finalizer object is pushed into Lua value-stack. */
+    fnstack = pallene_tracer_init(L);
+
+    /* ... MODULE CODE TO ENSURE EVERY MDOULE FUNCTION HAVE ACCESS TO
+           CALL-STACK AND FINALIZER OBJECT ... */
+    /* REFER TO MECHANISM SECTION TO KNOW MORE */
+}
+```
+Generally, working with Pallene Tracer is not a cumbersome experience, thanks to macro utilization. The code above is deliberately verbose for explanatory purposes.
+
+In the code above, black frame is pushed alongside with a successive white frame hereafter in Lua C function. The black frame works like a marker in Pallene Tracer call-stack. For generic C function, only white frame is pushed.
+
+The **traceback function** works similarly mentioned in overview. As aforementioned, black frames are dissected and another white frame bears the frame information of that particular black frame. Hence, in implementation sense, the significance of black frame is for probing and stack switch. The traceback function works as following: 
+
+```
+while each frame in Lua call-stack:
+    if frame is C frame: 
+        # Black frame probing
+        black_frame = nil
+        while call-stack current_frame is not black frame:  # No statements
+        black_frame = current_frame
+
+        # Frame is tracked
+        if pointer match between frame and black_frame: 
+            while call-stack current_frame is not black frame:
+                # Black frame will also get printed here
+                print white frames
+        else print untracked C frame
+    else print Lua frame
+```
+
+### 2.4 Significance of To-be-closed Finalizer Object
+
+A call to FRAMEENTER pushes a frame onto Pallene Tracer call-stack, a consecutive call to FRAMEEXIT pops the frame from the stack. But, in case of a runtime error, function execution stops before FRAMEEXIT call is reached in any of the functions. Hence, after the traceback has been done and error has been reported, the pushed frames stay in the stack.
+
+It is generally not a problem if the Lua interpreter exits after the exception as interpreter execution terminates. But if the error is caught with `pcall()` and its derivatives, the interpreter continues. At this point when Pallene Tracer tries to reuse call-stack for later function calls, the call-stack tend to get corrupted because of the previous uncleaned call-frames stack up, causing memory errors and in worst case scenario, crash.
+
+> **Note:** To-be-closed metamethod (`__close`) is only available in Lua 5.4 and later.
+
+The to-be-closed object is an object with `__close` metamethod. The metamethod is called whenever the object goes **_out of scope_** and is **closed** with `lua_toclose()`. Here, out of scope happens when respecting functions execution is completed or any error is encountered. Therefore, using this to-be-closed object, the problem of Pallene Tracer call-stack corruption can be fixed.
+
+The to-be-closed finalizer object is a table with a metatable holding the `__close` metamethod. The metamethod is called "finalizer" because it releases the call-frames. The table object holding the "finalizer" metamethod is the finalizer object, which needs to closed by calling `lua_toclose()`. Luckily, it is done so by the macros.
+
+> **Clarification:** The finalizer function/metamethod is responsible for popping the black frame from call-stack as well as all the white frames came after it. As the metamethod automatically gets called as soon as function execution completes, the representing black frame is popped from call-stack. Thus, it is unnecessary to call any form of FRAMEEXIT in Lua interface functions.
+
+### 2.5 Working Principle of To-be-closed Finalizer Metamethod
+
+Call to generic C functions are not done with `lua_call()` and it's derivatives. Hence, all C interface functions share the value-stack of last Lua interface function. There is a single finalizer object instance in every Lua interface value-stack, responsible for popping the representing black frame of respecting Lua C function and all the white frames coming after it. The object usually stays at the very bottom of the stack, mostly safe from unintentional popping from generic C functions.
+
+The finalizer function/metamethod works as follows: 
+```
+while no black frame:
+    pop frame
+
+pop black frame
+```
+
+### 2.6 The Pallene Tracer Lua Frontend
+
+Pallene Tracer has a tool up it's sleeve, a Lua frontend named **`pt-lua`**.
+
+A separate call-stack traceback function is needed to utilize our Pallene Tracer call-stack alongside with Lua call-stack. `pt-lua` is a Lua interpreter frontend (custom version of `lua.c` file per-se) with Pallene Tracer custom call-stack traceback function being the default one replacing `luaL_traceback`.
+
+Users are hereby implored to use `pt-lua` instead of `lua` command while working with Pallene Tracer compatible modules and languages, e.g. Pallene.
+
+> **Important Note:** Pallene Tracers custom error handler is available through `pallene_tracer_errhandler` global to be used against `xpcall()`.
 
 ## 3. Mechanism
 
@@ -167,13 +368,15 @@ typedef struct pt_fnstack {
 
 ### API Functions
 
+**Signature:**
 ```C
 pt_fnstack_t *pallene_tracer_init(lua_State *L);
 ```
-**Parameter:** A Lua state (`lua_State`)\
-**Return Value:** A `pt_fnstack_t` structure containing the call-stack. A to-be-closed finalizer object is returned through the **Lua value-stack**, essential for Lua interface functions.
 
-Initializes the Pallene Tracer. The initialization refers to creating the heap call-stack if not created, preparing the traceback function and finalizers. This function must only be called from Lua module entry point, `luaopen_*`.
+**Parameter:** A Lua state (`lua_State`)\
+**Return Value:** A `pt_fnstack_t` structure containing the call-stack. A to-be-closed finalizer object is returned through the **Lua value-stack**, to be use against Lua interface functions.
+
+Initializes the Pallene Tracer. The initialization refers to creating the heap call-stack if not created, preparing the traceback function and finalizers. This function must only be called from Lua module entry point, `luaopen_*`. 
 
 > **Note:** This function may allocate the call-stack in the heap or return pre-allocated call-stack for the same Lua state.
 <hr>
@@ -211,29 +414,5 @@ void pallene_tracer_frameexit(pt_fnstack_t *fnstack);
 **Return Value:** None
 
 Removes the topmost frame from the call-stack.
-<hr>
-
-```C
-int pallene_tracer_debug_traceback(lua_State *L);
-```
-
-The custom Lua C traceback function which will dump a better backtrace using both Pallene Tracer and Lua call-stack simultaneously. This function is meant to be called from Lua and would mostly be used by `pallene-debug` script. However, this function can be passed to `xpcall()` to generate the tracebacks as well.
-<hr>
-
-```C
-int pallene_tracer_finalizer(lua_State *L);
-```
-
-The finalizer Lua C function to be used as to-be-closed finalizer object, essential for Lua interface frames to refrain from Stack corruption.
-<hr>
-
-```C
-l_noret pallene_tracer_runtime_callstack_overflow_error(lua_State *L);
-```
-
-**Parameter:** A Lua state (`lua_State`)\
-**Return Value:** None
-
-Triggers the Pallene Tracer call-stack overflow error when frames can no longer be pushed into the stack. This function should get called from `pallene_tracer_frameenter()` function.
 
 TODO: Add API macros.
