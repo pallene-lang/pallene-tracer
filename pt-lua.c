@@ -983,6 +983,10 @@ int main (int argc, char **argv) {
   /* -------- PALLENE TRACER CODE -------- */
   (void) pallene_tracer_init(L);  /* initialize pallene tracer */
   lua_pop(L, 1);  /* We do not need the finalizer object here */
+
+  /* supply the message handler function with custom tracebacks. */
+  lua_pushcfunction(L, msghandler);
+  lua_setglobal(L, "pallene_tracer_errhandler");
   /* -------- PALLENE TRACER CODE END -------- */
 
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */
