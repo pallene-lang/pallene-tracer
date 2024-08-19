@@ -66,8 +66,8 @@ The traceback above is far from great. The C calls are missing line number infor
 
 **But**, by integrating Pallene Tracer into `some_mod` module and using the `pt-lua` on `main.lua`, something like this is achievable: 
 ```
-Runtime error: main.lua:69: Some random error to concern ourselves
-Stack traceback:
+pt-lua: main.lua:69: Some random error to concern ourselves
+stack traceback:
     main.lua:69: in function 'status_print'
     some_mod.c:11: in function 'some_mod_exit'
     some_mod.c:8: in function 'some_mod_recurse'
