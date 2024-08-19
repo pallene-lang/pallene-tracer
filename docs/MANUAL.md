@@ -40,7 +40,7 @@ In the module and script combined:
 
 The module and function names are obvious for simplicity sake. Suppose, from a high-level perspective the function calls look like this:
 
-`Lua <main> chunk` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> &nbsp; `some_lua_fn()` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ->\
+`Lua <main> chunk` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> &nbsp; `some_lua_fn()` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ->\
 `some_mod_c_fn()` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> &nbsp; `some_mod_inner_a()` ->\
 `some_mod_inner_b()` &nbsp; -> &nbsp; `some_mod_inner_c()` ->\
 `untracked_c_fn()` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> &nbsp; `some_mod_recurse()` ->\
@@ -157,7 +157,8 @@ Which can be thought of as,
 /* Function definitions of ptracer.h header */
 ```
 
-Therefore, it is highly recommended to keep the implementation code to different C translation and include the header normally in other C translations.
+Therefore, it is highly recommended to keep the implementation code to different C translation and include the header normally in other C translations.\
+
 <p align="right"><small><i>mymodule-ptracer.c</i></small></p>
 
 ```C
@@ -180,6 +181,7 @@ Therefore, it is highly recommended to keep the implementation code to different
 ```
 
 But in case of single source modules, including the header with implementation is fine.
+
 <p align="right"><small><i>single-source-module.c</i></small></p>
 
 ```C
@@ -306,7 +308,7 @@ It is generally not a problem if the Lua interpreter exits after the exception a
 
 The to-be-closed object is an object with `__close` metamethod. The metamethod is called whenever the object goes **_out of scope_** and is **closed** with `lua_toclose()`. Here, out of scope happens when respecting functions execution is completed or any error is encountered. Therefore, using this to-be-closed object, the problem of Pallene Tracer call-stack corruption can be fixed.
 
-The to-be-closed finalizer object is a table with a metatable holding the `__close` metamethod. The metamethod is called "finalizer" because it releases the call-frames. The table object holding the "finalizer" metamethod is the finalizer object, which needs to closed by calling `lua_toclose()`. Luckily, it is done so by the macros.
+The to-be-closed finalizer object is a table with a metatable holding the `__close` metamethod. The metamethod is called "finalizer" because it releases the call-frames. The table object holding the "finalizer" metamethod is the finalizer object, which needs to closed by calling `lua_toclose()`. Luckily, it is done so by the API macros.
 
 > **Clarification:** The finalizer function/metamethod is responsible for popping the black frame from call-stack as well as all the white frames came after it. As the metamethod automatically gets called as soon as function execution completes, the representing black frame is popped from call-stack. Thus, it is unnecessary to call any form of FRAMEEXIT in Lua interface functions.
 
@@ -334,8 +336,303 @@ Users are hereby implored to use `pt-lua` instead of `lua` command while working
 
 ## 3. Mechanism
 
-TODO
+There are some mechanism or techniques to adopt Pallene Tracer to modules, increasing development experience.
 
+As aforementioned, all the C functions need to have access to Pallene Tracer call-stack and Lua interface functions need to have access to to-be-closed finalizer object. From Lua or C environment, only Lua interface functions can be invoked and generic C functions share the Lua state of last Lua interface function call.
+
+A great way to pass call-stack and finalizer object would be through Upvalues to Lua interface functions, evidently making them Lua C closures. The C interface function also have access to call-stack because same Lua state is shared. The Pallene Tracer call-stack can be shared with interface function through C global as well, but in such way flexibility of supporting multiple Lua state is sacrificed.
+
+### 3.1 Working with Macros
+
+While using Pallene Tracer, utilizing macros are crucial. Pallene Tracer macros  are designed to be flexible, generic and should be wrapped with Users defined macros to unleash its full potential.
+
+> **Note:** Go to the [Macros](#macros) subsection of API section to learn what each API macro does.
+
+If working with multi-source modules, it is recommended to dedicate a header file for macro definitions. For single source modules, it is a good idea to define the macros at the beginning of translation. An example header would be:
+
+<p align="right"><small><i>ptracer-macros.h</i></small></p>
+
+```C
+#ifndef PTRACER_MACROS_H
+#define PTRACER_MACROS_H
+
+/* User specific macros when Pallene Tracer debug mode is enabled. */
+#ifdef PT_DEBUG
+#define MODULE_GET_FNSTACK                       \
+    pt_fnstack_t *fnstack = lua_touserdata(L,    \
+        lua_upvalueindex(N))  // If `fnstack` is passed as Nth upvalue
+
+#else
+#define MODULE_GET_FNSTACK  // Release mode, we do nothing
+#endif // PT_DEBUG
+
+/* ---------------- C INTERFACE ---------------- */
+
+#define MODULE_C_FRAMEENTER()                              \
+    MODULE_GET_FNSTACK;                                    \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame_c)
+
+#define MODULE_C_SETLINE()                                 \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
+
+#define MODULE_C_FRAMEEXIT()                               \
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
+
+/* ---------------- C INTERFACE END ---------------- */
+
+/* ---------------- LUA INERFACE ---------------- */
+
+// Finalizer object upvalue at 
+#define MODULE_LUA_FRAMEENTER(fnptr)                       \
+    MODULE_GET_FNSTACK;                                    \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,       \
+        lua_upvalueindex(N + 1), _frame_lua)               \
+    MODULE_C_FRAMEENTER()  // Lua interface functions are also C functions
+
+/* ---------------- LUA INERFACE END ---------------- */
+
+#endif // PTRACER_MACROS_H
+```
+
+> **Clarification:** Pallene Tracer macros work if and only if `PT_DEBUG` macro is defined. This macro also can be perceived to define user specific macros when Pallene Tracer debug mode is enabled. If the macro is undefined, Pallene Tracer API macros expand to nothing.
+
+### 3.2 The Dispatch Mechanism
+
+Modules are written following this mechanism solely keeping performance in mind. In this mechanism/framework, the Lua interface function dispatches to a generic C function. In this way, the generic C function can call another module specific function directly without `lua_call()` and it's derivatives. This implementation mechanism is performant when involving lot of function calls in a module as there is no `lua_call()` overhead.
+
+<p align="right"><small><i>dispatch-module.c</i></small></p>
+
+```C
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+
+/* User specific macros when Pallene Tracer debug mode is enabled. */
+#ifdef PT_DEBUG
+#define MODULE_GET_FNSTACK                          \
+    pt_fnstack_t *fnstack = lua_touserdata(L,       \
+        lua_upvalueindex(1))
+
+#else
+#define MODULE_GET_FNSTACK
+#endif // PT_DEBUG
+
+/* ---------------- PALLENE TRACER LUA INERFACE ---------------- */
+
+#define MODULE_LUA_FRAMEENTER(fnptr)                       \
+    MODULE_GET_FNSTACK;                                    \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,       \
+        lua_upvalueindex(2), _frame)
+
+/* ---------------- PALLENE TRACER LUA INERFACE END ---------------- */
+
+/* ---------------- PALLENE TRACER C INTERFACE ---------------- */
+
+#define MODULE_C_FRAMEENTER()                              \
+    MODULE_GET_FNSTACK;                                    \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame)
+
+#define MODULE_C_SETLINE()                                 \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
+
+#define MODULE_C_FRAMEEXIT()                               \
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
+
+/* ---------------- PALLENE TRACER C INTERFACE END ---------------- */
+
+lua_Integer some_dispatch_fn(lua_State *L, lua_Integer some_int) {
+    MODULE_C_FRAMEENTER();
+
+    /* ... SOME CODE ... */
+    lua_Integer something = 69 * some_int;
+
+    MODULE_C_FRAMEEXIT();
+    return something;
+}
+
+int some_dispatch_fn_lua(lua_State *L) {
+    // It is generally a good idea to store base stack because
+    // the finalizer object would be pushed to the stack by the
+    // `MODULE_LUA_FRAMEENTER` macro.
+    int base = lua_gettop(L);
+    // We don't need to create a white frame here becuase we can do
+    // it in the dispatchee function.
+    MODULE_LUA_FRAMEENTER(some_dispatch_fn);
+
+    if(base < 1) {
+	    luaL_error(L, "expected atleast 1 parameter");
+    }
+    if(!lua_isinteger(L, 1)) {
+        luaL_error(L, "expected the first parameter to be an integer");
+    }
+
+    // Dispatch to generic C funtion.
+    lua_pushinteger(some_dispatch_fn(L, lua_tointeger(L, 1)));
+
+    return 1;
+}
+
+int luaopen_dispatch_module(lua_State *L) {
+    // `pallene_tracer_init` returns NULL if debug mode is disabled
+    // Finalizer object is pushed into the value-stack
+    pt_fnstack_t *fnstack = pallene_tracer_init(L);
+
+    lua_newtable(L);
+    int table = lua_gettop(L);
+
+    /* ---- some_dispatch_fn ---- */
+    lua_pushlightuserdata(L, fnstack);  // Our call-stack
+    // The finalizer object is already in value-stack
+    lua_pushvalue(L, -3);
+    lua_pushcclosure(L, some_dispatch_fn_lua, 2);
+    lua_setfield(L, table, "some_dispatch_fn");
+
+    return 1;
+}
+```
+
+### 3.3 The Singular Mechanism
+
+This is the simplest mechanism followed by most of the Lua modules. In this mechanism, Lua interface function does most of the heavy-lifting, instead of dispatching to a representing generic C function. Writing modules following this mechanism is simple but relinquishes performance, because  `lua_call()` overhead is introduced while calling other module functions.
+
+In singular mechanism, Lua interface functions are treated almost as generic C functions.
+
+<p align="right"><small><i>singular-module.c</i></small></p>
+
+```C
+#define PT_IMPLEMENTATION
+#include <ptracer.h>
+
+/* User specific macros when Pallene Tracer debug mode is enabled. */
+#ifdef PT_DEBUG
+#define MODULE_GET_FNSTACK                          \
+    lua_pushligthuserdata(L, &stack_key);           \
+    lua_gettable(L, LUA_REGISTRYINDEX);             \
+    pt_fnstack_t *fnstack = lua_topointer(L, -1);   \
+    lua_pop(L, 1)
+
+#else
+#define MODULE_GET_FNSTACK
+#endif // PT_DEBUG
+
+/* ---------------- PALLENE TRACER C INTERFACE ---------------- */
+
+#define MODULE_C_FRAMEENTER()                              \
+    MODULE_GET_FNSTACK;                                    \
+    PALLENE_TRACER_GENERIC_C_FRAMEENTER(fnstack, _frame)
+
+#define MODULE_C_SETLINE()                                 \
+    PALLENE_TRACER_GENERIC_C_SETLINE(fnstack)
+
+#define MODULE_C_FRAMEEXIT()                               \
+    PALLENE_TRACER_FRAMEEXIT(fnstack)
+
+/* ---------------- PALLENE TRACER C INTERFACE END ---------------- */
+
+/* ---------------- PALLENE TRACER LUA INERFACE ---------------- */
+
+#define MODULE_LUA_FRAMEENTER(fnptr)                       \
+    MODULE_GET_FNSTACK;                                    \
+    lua_pushlightuserdata(L, &finalizer_key);              \
+    lua_gettable(L, LUA_REGISTRYINDEX);                    \
+    PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,       \
+        -1, _frame_lua)                                    \
+    MODULE_C_FRAMEENTER()
+
+/* ---------------- PALLENE TRACER LUA INERFACE END ---------------- */
+
+static int stack_key;
+static int finalizer_key;
+
+lua_Integer generic_c_fn(lua_State *L, int some_int) {
+    MODULE_C_FRAMEENTER();
+
+    /* ... SOME CODE ... */
+    lua_Integer something = 88 * some_int;
+
+    MODULE_C_FRAMEEXIT();
+    return something;
+}
+
+int some_singular_fn(lua_State *L) {
+    // It is generally a good idea to store base stack because
+    // the finalizer object would be pushed to the stack by the
+    // `MODULE_LUA_FRAMEENTER` macro.
+    int base = lua_gettop(L);
+    // We don't need to create a white frame here becuase we can do
+    // it in the dispatchee function.
+    MODULE_LUA_FRAMEENTER(some_dispatch_fn);
+
+    if(base < 1) {
+	    luaL_error(L, "expected atleast 1 parameter");
+    }
+    if(!lua_isinteger(L, 1)) {
+        luaL_error(L, "expected the first parameter to be an integer");
+    }
+
+    /* ... CODE ... */
+
+    MODULE_C_SETLINE();
+    lua_Integer result = generic_c_fn(L, lua_tointeger(L, 1));
+    lua_pushinteger(L, (result << 2) + 13);
+
+    // Lua interface functions are almost treated as generic C functions.
+    MODULE_C_FRAMEEXIT();
+    return 1;
+}
+
+int luaopen_singular_module(lua_State *L) {
+    // `pallene_tracer_init` returns NULL if debug mode is disabled
+    // Finalizer object is pushed into the value-stack
+    pt_fnstack_t *fnstack = pallene_tracer_init(L);
+
+    // Using Lua registry is another way of supplying the stack
+    // and finalizer object.
+    // Pallene Tracer call-stack.
+    lua_pushlightuserdata(L, &stack_key);
+    lua_pushlightuserdata(L, fnstack);
+    lua_settable(L, LUA_REGISTRYINDEX); 
+
+    // Finalizer object.
+    lua_pushlightuserdata(L, &finalizer_key);
+    lua_pushvalue(L, -2);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_newtable(L);
+    int table = lua_gettop(L);
+
+    /* ---- some_singular_function ---- */
+    lua_pushcfunction(L, some_singular_fn);
+    lua_setfield(L, table, "some_singular_fn");
+
+    return 1;
+}
+```
+
+In above example, Lua registry is used, which is yet another way to supply the call-stack. But generally, using Upvalues is recommended to ensure maximum performance.
+
+> **Clarification:** Compiling without the `PT_DEBUG` macro will result empty expansion of the macros used in the examples. Therefore, no performance hit will be encountered.
+
+### 3.4 When and Where to use Macros
+
+Regardless of the interface function type, three macros are frequently used: 
+1. The `FRAMEENTER` macro(s) should be used at the very beginning of each function.
+2. The `FRAMEEXIT` macros should be used before every return statement. **_BUT BE CAREFUL_** to add a FRAMEEXIT at the very end of **_void C interface functions_**. **_IT IS VERY EASY TO MISS._**
+3. The use of `SETLINE` macro is tricky. It is generally used to set line numbers to topmost call-frame in call-stack. It should be used prior to calling any function, or triggering any error. But some Lua API functions can trigger runtime errors (e.g. when `nil` value is used against `lua_len`). Using `SETLINE` prior calling these API function is recommended.
+
+> **Tip:** If any garbage line number is encountered (e.g. line number 0 or any line number which does not exist in the function, line number denoting blank line etc.), it is because the `SETLINE` macro is not called properly. Most of the cases, it happens when runtime error is triggered by any of the Lua API functions.
+
+To make setting line easier, some more user specific macros can be enforced: 
+```C
+#define MODULE_DOSTMT(stmt)   \
+MODULE_C_SETLINE();           \
+stmt
+```
+
+Which then can be used like:
+```C
+MODULE_DOSTMT(call_some_func(L, parameters));
+MODULE_DOSTMT(int n = lua_len(L, -1));
+```
 ## API
 ### Data Structures
 
