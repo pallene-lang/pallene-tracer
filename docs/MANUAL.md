@@ -363,7 +363,7 @@ If working with multi-source modules, it is recommended to dedicate a header fil
 #ifdef PT_DEBUG
 #define MODULE_GET_FNSTACK                       \
     pt_fnstack_t *fnstack = lua_touserdata(L,    \
-        lua_upvalueindex(N))  // If `fnstack` is passed as Nth upvalue
+        lua_upvalueindex(N));  // If `fnstack` is passed as Nth upvalue
 
 #else
 #define MODULE_GET_FNSTACK  // Release mode, we do nothing
@@ -390,7 +390,7 @@ If working with multi-source modules, it is recommended to dedicate a header fil
     MODULE_GET_FNSTACK;                                    \
     PALLENE_TRACER_LUA_FRAMEENTER(L, fnstack, fnptr,       \
         lua_upvalueindex(N + 1), _frame_lua)               \
-    MODULE_C_FRAMEENTER()  // Lua interface functions are also C functions
+    MODULE_C_FRAMEENTER();  // Lua interface functions are also C functions
 
 /* ---------------- LUA INERFACE END ---------------- */
 
