@@ -85,7 +85,8 @@ Which is more informative and clean. A data-structure is required to store the l
 <img src="assets/call-stack-visualization.png" type="image/png" />
 <figcaption align="center"><small>Figure 1: Synchronous relation between Lua and Pallene Tracer call-stack</small></figcaption>
 </figure>
-
+\
+\
 > **Note:** Black and white frames are concepts solely bounded to Pallene Tracer and Pallene Tracer call-stack regardless of illustrations. The black frames are also illustrated in Lua call-stack primarily for better intuition. 
 
 In the Figure above, Lua and Pallene Tracer call-stack can be seen side by side with call-stack having some extra frames absent in Lua call-stack. There are some boxes (frames) filled with black and also some red lines.
@@ -101,11 +102,13 @@ All the frames in call-stack are C frames storing information like function name
 The builtin Lua traceback function will not take advantage of the separate self-maintained call-stack that Pallene Tracer have. Therefore, an explicit debug traceback function is used to display the stack-trace. This debug traceback function will mostly be used by the `pallene-debug` script. The function also can be used against `xpcall()` to generate stack-trace as well.
 
 Below is a Figure mostly resembling the figure prior but with curvy red lines, blue dots and some red straight lines at the right.
+
 <figure>
 <img src="assets/traceback-visualization.png" type="image/png" />
 <figcaption align="center"><small>Figure 2: Working mechanism of Pallene Tracer traceback function</small></figcaption>
 </figure>
-Unlike the builtin Lua traceback function, Pallene Tracer traceback function needs to deal with two separate but synchronous stacks simultaneously. But here's the elephant in the room. During backtrace how to know which call-stack to use and when?
+\
+\Unlike the builtin Lua traceback function, Pallene Tracer traceback function needs to deal with two separate but synchronous stacks simultaneously. But here's the elephant in the room. During backtrace how to know which call-stack to use and when?
 
 To solve this problem, the concept of black and white frames is introduced. Frames which are common in both Pallene Tracer and Lua call-stack are black frames or Lua interface frames. The other frames in Pallene Tracer call-stack are referred to as white frames or C interface frames.
 
