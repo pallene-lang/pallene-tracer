@@ -100,7 +100,7 @@ All the frames in call-stack are C frames storing information like function name
 
 ### 1.2 Working Principle of Traceback Function
 
-The builtin Lua traceback function (`luaL_traceback`) will not take advantage of the separate self-maintained call-stack that Pallene Tracer have. Therefore, an explicit debug traceback function is used to display the stack-trace. This debug traceback function will mostly be used by `pt-lua`, Pallene Tracers custom [Lua frontend](26-the-pallene-tracer-lua-frontend). The function, defined as `pallene_tracer_errhandler` Lua global, also can be used against `xpcall()` to generate stack-trace as well.
+The builtin Lua traceback function (`luaL_traceback`) will not take advantage of the separate self-maintained call-stack that Pallene Tracer have. Therefore, an explicit debug traceback function is used to display the stack-trace. This debug traceback function will mostly be used by `pt-lua`, Pallene Tracers custom [Lua frontend](#26-the-pallene-tracer-lua-frontend). The function, defined as `pallene_tracer_errhandler` Lua global, also can be used against `xpcall()` to generate stack-trace as well.
 
 Below is a Figure mostly resembling the figure prior but with curvy red lines, blue dots and some red straight lines at the right.
 
@@ -133,7 +133,7 @@ This happens when a Lua C function is not traced by Pallene Tracer at runtime, r
 
 ## 2. Implementation
 
-There are five components to Pallene Tracer making all the magic happen. Four functions in `ptracer.h` (abstracted by macros) and a tool, [`pt-lua`](26-the-pallene-tracer-lua-frontend).
+There are five components to Pallene Tracer making all the magic happen. Four functions in `ptracer.h` (abstracted by macros) and a tool, [`pt-lua`](#26-the-pallene-tracer-lua-frontend).
 
 ### 2.1 The `ptracer.h` Header
 
@@ -349,7 +349,7 @@ A great way to pass call-stack and finalizer object would be through Upvalues to
 
 While using Pallene Tracer, utilizing macros are crucial. Pallene Tracer macros  are designed to be flexible, generic and should be wrapped with Users defined macros to unleash its full potential.
 
-> **Note:** Go to the [Macros](#macros) subsection of API section to learn what each API macro does.
+> **Note:** Go to the [Macros](#43-api-macros) subsection of API section to learn what each API macro does.
 
 If working with multi-source modules, it is recommended to dedicate a header file for macro definitions. For single source modules, it is a good idea to define the macros at the beginning of translation. An example header would be:
 
