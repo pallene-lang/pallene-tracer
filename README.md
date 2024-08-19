@@ -20,7 +20,7 @@ To install Pallene Tracer against local Lua with `/usr/local` prefix (or any pre
 sudo make install LUA_PREFIX=/usr/local
 ```
 
-Pallene Tracer sometimes fails to build if Lua is built with address sanitizer (ASan) enabled. To get around the issue use: 
+Pallene Tracer sometime fails to build if Lua is built with address sanitizer (ASan) enabled. To get around the issue use: 
 ```
 sudo make install LDFLAGS=-lasan
 ```
