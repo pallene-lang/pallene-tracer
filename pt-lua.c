@@ -985,6 +985,7 @@ int main (int argc, char **argv) {
   lua_pop(L, 1);  /* We do not need the finalizer object here */
 
   /* supply the message handler function with custom tracebacks. */
+  /* it is safe to set globals at this point, because no code has been run yet. */
   lua_pushcfunction(L, msghandler);
   lua_setglobal(L, "pallene_tracer_errhandler");
   /* -------- PALLENE TRACER CODE END -------- */
