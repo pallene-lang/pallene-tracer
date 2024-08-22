@@ -10,7 +10,7 @@ Pallene Tracer was created to address the need for function tracebacks in [Palle
 
 ### Prerequisites
 
-You need to have _**atleast Lua 5.4_** installed in your system at any location.
+You need to have **_atleast Lua 5.4_** installed in your system at any location.
 
 ### Building
 
