@@ -1,30 +1,45 @@
 <h1 align="center">The Pallene Tracer</h1>
 
-Pallene Tracer is a project providing protocols and underlying mechanism aiming to enable Lua C modules to have proper function call-traceback, without touching a single code in Lua internals!
+Pallene Tracer allows Lua libraries written in C to have proper function tracebacks, without changing a single code in Lua!
+
+Pallene Tracer was created to address the need for function tracebacks in [Pallene](https://github.com/pallene-lang/pallene), an Ahead-of-Time compiled sister language to Lua. Pallene is intermediately compiled to C, hence protocols and mechanism used can be ported to broader Lua C libraries.
+
+> **Note:** Pallene Tracer is independent of Pallene but not vice versa.
 
 ## Installing Pallene Tracer
 
 ### Prerequisites
 
-You need to have Lua installed in your system in any prefix.
+You need to have Lua installed in your system in any location.
 
-### Procedure
+### Building
 
-To install Pallene Tracer in `/usr/local` prefix, against system Lua with `/usr` prefix: 
+To build against `/usr` Lua prefix (system Lua), just simply run:
+```
+make
+```
+
+To build against local Lua with `/usr/local` prefix (or any prefix):
+```
+make LUA_PREFIX=/usr/local
+```
+
+> **Note:** Default `LUA_PREFIX` is `/usr`.
+
+Pallene Tracer sometime fails to build if Lua is built with address sanitizer (ASan) enabled. To get around the issue use: 
+```
+make LDFLAGS=-lasan LUA_PREFIX=<preferred_prefix>
+```
+
+### Installing
+
+To install Pallene Tracer to `/usr/local`, simply run:
 ```
 sudo make install
 ```
 
-To install Pallene Tracer against local Lua with `/usr/local` prefix (or any prefix):
-```
-sudo make install LUA_PREFIX=/usr/local
-```
-
-Pallene Tracer sometime fails to build if Lua is built with address sanitizer (ASan) enabled. To get around the issue use: 
-```
-sudo make install LDFLAGS=-lasan
-```
+Pallene Tracer supplies a custom Lua frontend `pt-lua` and `ptracer.h` header (including source).
 
 ### How to use Pallene Tracer
 
-Notes on how Pallene Tracer is designed and how to use it can be found in the [docs](https://github.com/pallene-lang/pallene-tracer/blob/main/docs/MANUAL.md). Also feel free to look at the `examples` directory for further intuition.
+The developers manual on how Pallene Tracer works and used can be found in [docs](https://github.com/pallene-lang/pallene-tracer/blob/main/docs/MANUAL.md). Also feel free to look at the `examples` directory for further intuition.
