@@ -34,13 +34,10 @@ PTLUA_LDLIBS  = -llua -lm
 # Compilation targets
 # ===================
 
-.PHONY: library examples tests all install uninstall clean
+.PHONY: library tests all install uninstall clean
 
 library: \
 	pt-lua
-
-examples: library \
-	examples/fibonacci/fibonacci.so
 
 tests: library \
         spec/tracebacks/anon_lua/module.so \
@@ -51,7 +48,7 @@ tests: library \
         spec/tracebacks/multimod/module_b.so \
         spec/tracebacks/singular/module.so
 
-all: library examples tests
+all: library tests
 
 install: library
 	$(INSTALL_EXEC) pt-lua $(BINDIR)
@@ -62,7 +59,7 @@ uninstall:
 	rm -rf $(BINDIR)/pt-run
 
 clean:
-	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
+	rm -rf pt-run spec/tracebacks/*/*.so
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBFLAG) $< -o $@
@@ -70,7 +67,6 @@ clean:
 pt-lua: pt-lua.c ptracer.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
 
-examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           ptracer.h
 spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        ptracer.h
 spec/tracebacks/depth_recursion/module.so: spec/tracebacks/depth_recursion/module.c ptracer.h
 spec/tracebacks/dispatch/module.so:        spec/tracebacks/dispatch/module.c        ptracer.h
