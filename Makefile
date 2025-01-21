@@ -28,7 +28,7 @@ LDFLAGS = -L$(LUA_LIBDIR)
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
 # We need them for Lua modules that are dynamically linked via require
-PTLUA_LDFLAGS = -Wl,-E
+PTLUA_LDFLAGS = -Wl,-export_dynamic
 PTLUA_LDLIBS  = -llua -lm
 
 # ===================
