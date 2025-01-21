@@ -24,11 +24,10 @@ CFLAGS   = -DPT_DEBUG -g -std=c99 -pedantic -Wall -Wextra -Wformat-security
 # Explicitly mention which Lua headers to capture
 CPPFLAGS = -I$(LUA_INCDIR) -I.
 LIBFLAG  = -fPIC -shared
-LDFLAGS = -L$(LUA_LIBDIR)
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
 # We need them for Lua modules that are dynamically linked via require
-PTLUA_LDFLAGS = -Wl,-export_dynamic
+PTLUA_LDFLAGS = -L$(LUA_LIBDIR) -Wl,-export_dynamic
 PTLUA_LDLIBS  = -llua -lm
 
 # ===================
@@ -66,7 +65,7 @@ clean:
 	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
 
 %.so: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LIBFLAG) $< -o $@ $(PTLUA_LDLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -L$(LUA_LIBDIR) $(LIBFLAG) $< -o $@ $(PTLUA_LDLIBS)
 
 pt-lua: pt-lua.c ptracer.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
