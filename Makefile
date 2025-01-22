@@ -27,7 +27,7 @@ LIBFLAG  = -fPIC -shared
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
 # We need them for Lua modules that are dynamically linked via require
-PTLUA_LDFLAGS = -L$(LUA_LIBDIR) -Wl,-export_dynamic
+PTLUA_LDFLAGS = -Wl,--export_dynamic
 PTLUA_LDLIBS  = -llua -lm
 
 # ===================
@@ -68,7 +68,7 @@ clean:
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -L$(LUA_LIBDIR) $(LIBFLAG) $< -o $@ $(PTLUA_LDLIBS)
 
 pt-lua: pt-lua.c ptracer.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -L$(LUA_LIBDIR) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
 
 examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           ptracer.h
 spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        ptracer.h

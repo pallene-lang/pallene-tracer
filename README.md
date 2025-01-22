@@ -26,6 +26,12 @@ make LUA_PREFIX=/usr/local
 
 > **Note:** Default `LUA_PREFIX` is `/usr`.
 
+The linker supplied with Apple's Xcode command line developer tools does not use the same flag conventions as the GNU linker, gold, LLVM lld, etc. **On macos**, you may have to manually specify the `-export_dynamic` linker flag:
+
+```
+make PTLUA_LDFLAGS=-Wl,-export_dynamic LUA_PREFIX=<preferred_prefix>
+```
+
 Pallene Tracer sometime fails to build if Lua is built with address sanitizer (ASan) enabled. To get around the issue use: 
 ```
 make LDFLAGS=-lasan LUA_PREFIX=<preferred_prefix>
