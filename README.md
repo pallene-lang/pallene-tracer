@@ -46,6 +46,19 @@ sudo make install
 
 Pallene Tracer supplies a custom Lua frontend `pt-lua` and `ptracer.h` header (including source).
 
+### Runnning tests
+
+If your lua prefix is `/usr`, simply run:
+```
+./run-tests
+```
+
+If you are using a local lua prefix (not `/usr`), you will need to build the tests separately before running the test script:
+```
+make LUA_PREFIX=<preferred_prefix> tests
+./run-tests
+```
+
 ### How to use Pallene Tracer
 
 The developers manual on how Pallene Tracer works and used can be found in [docs](https://github.com/pallene-lang/pallene-tracer/blob/main/docs/MANUAL.md). Also feel free to look at the `examples` directory for further intuition.
