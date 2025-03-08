@@ -24,14 +24,14 @@ CFLAGS   = -DPT_DEBUG -g -std=c99 -pedantic -Wall -Wextra -Wformat-security
 # Explicitly mention which Lua headers to capture
 CPPFLAGS = -I$(LUA_INCDIR) -I.
 LIBFLAG  = -fPIC -shared
+SO_LDFLAGS = -L$(LUA_LIBDIR)
 
 # The -Wl,-E tells the linker to not throw away unused Lua API symbols.
 # We need them for Lua modules that are dynamically linked via require
 # Note: the xcode (macos) linker uses -export-dynamic instead of -E.
 # To build on macos, use make EXPFLAG=-export-dynamic
 EXPFLAG = -E
-LDFLAGS = -Wl,$(EXPFLAG)
-PTLUA_LDFLAGS = -L$(LUA_LIBDIR)
+PTLUA_LDFLAGS = -L$(LUA_LIBDIR) -Wl,$(EXPFLAG)
 PTLUA_LDLIBS  = -llua -lm
 
 # ===================
@@ -69,7 +69,7 @@ clean:
 	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
 
 %.so: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $(LIBFLAG) $< -o $@ $(PTLUA_LDLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(SO_LDFLAGS) $(LIBFLAG) $< -o $@ $(PTLUA_LDLIBS)
 
 pt-lua: pt-lua.c ptracer.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
