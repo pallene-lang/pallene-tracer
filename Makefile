@@ -67,6 +67,7 @@ uninstall:
 
 clean:
 	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
+	rm -rf pt-lua.dSYM spec/tracebacks/*/*.dSYM examples/*/*.dSYM
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(SO_LDFLAGS) $(LIBFLAG) $< -o $@
