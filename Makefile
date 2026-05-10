@@ -63,7 +63,7 @@ install: library
 
 uninstall:
 	rm -rf $(INCDIR)/ptracer.h
-	rm -rf $(BINDIR)/pt-run
+	rm -rf $(BINDIR)/pt-lua
 
 clean:
 	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
