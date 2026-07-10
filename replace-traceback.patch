@@ -1,0 +1,95 @@
+--- lua.c	2026-07-10 16:30:43.183060656 +0000
++++ pt-lua.c	2026-07-10 16:32:03.189605478 +0000
+@@ -6,7 +6,52 @@
+ 
+ #define lua_c
+ 
+-#include "lprefix.h"
++/*
++
++We copy the file 'lprefix.h' verbatim here. In the original 'lua.c', this
++is #included as a header, but 'lprefix.h' is an internal Lua header that isn't
++installed alongside the public headers, so it's not available to us here.
++
++- njs, July 10, 2026
++
++*/
++
++/** lprefix.h **/
++
++/*
++** Allows POSIX/XSI stuff
++*/
++#if !defined(LUA_USE_C89)       /* { */
++
++#if !defined(_XOPEN_SOURCE)
++#define _XOPEN_SOURCE           600
++#elif _XOPEN_SOURCE == 0
++#undef _XOPEN_SOURCE  /* use -D_XOPEN_SOURCE=0 to undefine it */
++#endif
++
++/*
++** Allows manipulation of large files in gcc and some other compilers
++*/
++#if !defined(LUA_32BITS) && !defined(_FILE_OFFSET_BITS)
++#define _LARGEFILE_SOURCE       1
++#define _FILE_OFFSET_BITS       64
++#endif
++
++#endif                          /* } */
++
++/** lprefix.h end **/
++
++
++/*
++** Windows stuff
++*/
++#if defined(_WIN32)     /* { */
++
++#if !defined(_CRT_SECURE_NO_WARNINGS)
++#define _CRT_SECURE_NO_WARNINGS  /* avoid warnings about ISO C functions */
++#endif
++
++#endif                  /* } */
+ 
+ 
+ #include <stdio.h>
+@@ -20,6 +65,8 @@
+ #include "lauxlib.h"
+ #include "lualib.h"
+ 
++#define PT_IMPLEMENTATION
++#include "ptracer.h"
+ 
+ #if !defined(LUA_PROGNAME)
+ #define LUA_PROGNAME		"lua"
+@@ -142,7 +189,10 @@
+       msg = lua_pushfstring(L, "(error object is a %s value)",
+                                luaL_typename(L, 1));
+   }
+-  luaL_traceback(L, L, msg, 1);  /* append a standard traceback */
++  /* -------- PALLENE TRACER CODE -------- */
++  debugtraceback(L, msg);  /* Our custom debug traceback function */
++  /* -------- PALLENE TRACER CODE END -------- */
++
+   return 1;  /* return the traceback */
+ }
+ 
+@@ -676,6 +726,17 @@
+     return EXIT_FAILURE;
+   }
+   lua_gc(L, LUA_GCSTOP);  /* stop GC while building state */
++
++  /* -------- PALLENE TRACER CODE -------- */
++  (void) pallene_tracer_init(L);  /* initialize pallene tracer */
++  lua_pop(L, 1);  /* We do not need the finalizer object here */
++
++  /* supply the message handler function with custom tracebacks. */
++  /* it is safe to set globals at this point, because no code has been run yet. */
++  lua_pushcfunction(L, msghandler);
++  lua_setglobal(L, "pallene_tracer_errhandler");
++  /* -------- PALLENE TRACER CODE END -------- */
++
+   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */
+   lua_pushinteger(L, argc);  /* 1st argument */
+   lua_pushlightuserdata(L, argv); /* 2nd argument */

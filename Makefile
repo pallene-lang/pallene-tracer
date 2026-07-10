@@ -72,8 +72,10 @@ clean:
 %.so: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(SO_LDFLAGS) $(LIBFLAG) $< -o $@
 
-pt-lua: pt-lua.c ptracer.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
+pt-lua: lua.c ptracer.h
+	cp lua.c pt-lua.c
+	patch pt-lua.c < replace-traceback.patch
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $@.c -o $@ $(PTLUA_LDLIBS)
 
 examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           ptracer.h
 spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        ptracer.h
