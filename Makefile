@@ -66,14 +66,17 @@ uninstall:
 	rm -rf $(BINDIR)/pt-lua
 
 clean:
+	rm -rf pt-lua.c
 	rm -rf pt-lua examples/*/*.so spec/tracebacks/*/*.so
 	rm -rf pt-lua.dSYM spec/tracebacks/*/*.dSYM examples/*/*.dSYM
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(SO_LDFLAGS) $(LIBFLAG) $< -o $@
 
-pt-lua: pt-lua.c ptracer.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) $< -o $@ $(PTLUA_LDLIBS)
+pt-lua: lua.c ptracer.h
+	cp lua.c pt-lua.c
+	patch pt-lua.c < replace-traceback.patch
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PTLUA_LDFLAGS) -DLUA_PROGNAME=\"pt-lua\" $@.c -o $@ $(PTLUA_LDLIBS)
 
 examples/fibonacci/fibonacci.so:           examples/fibonacci/fibonacci.c           ptracer.h
 spec/tracebacks/anon_lua/module.so:        spec/tracebacks/anon_lua/module.c        ptracer.h
